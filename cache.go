@@ -2,15 +2,47 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// Implement a simple cache using SQLite
+
+type Metadata struct {
+	cached_at  time.Time
+	tags       []string
+	categories []string
+}
+
+type Link struct {
+	name          string
+	description   string
+	url           string
+	category      string
+	tags          []string
+	created       time.Time
+	last_modified time.Time
+	record_url    string
+	id            string
+	done          bool
+	lists         []List
+}
+
+type List struct {
+	name          string
+	description   string
+	links         []Link
+	status        string // To Do, In Progress, Done
+	created       time.Time
+	last_modified time.Time
+	record_url    string
+	id            string
+}
+
 const dbFile = "cache.db"
 
+// Initialize the database
 func initDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
@@ -92,21 +124,3 @@ func clearCache() error {
 	return nil
 }
 
-func main() {
-	// Example usage
-	err := setCache("exampleKey", "exampleValue")
-	if err != nil {
-		log.Fatalf("Failed to set cache: %v", err)
-	}
-
-	value, err := getCache("exampleKey")
-	if err != nil {
-		log.Fatalf("Failed to get cache: %v", err)
-	}
-	fmt.Printf("Cached value: %s\n", value)
-
-	err = clearCache()
-	if err != nil {
-		log.Fatalf("Failed to clear cache: %v", err)
-	}
-}
