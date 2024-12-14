@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
 )
+
+// Implement OAuth2 authentication and token management
+// Start a HTTP server to handle the OAuth2 flow
 
 const (
 	clientID     = "your-client-id"
@@ -71,7 +74,7 @@ func exchangeCodeForToken(code string) (*Token, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.Reader(resp.Body))
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +152,7 @@ func refreshAccessToken(refreshToken string) (*Token, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.Reader(resp.Body))
 	if err != nil {
 		return nil, err
 	}

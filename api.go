@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
+
+// Interact with the Airtable API
+// Fetch, create, update, and delete records
 
 const (
 	baseURL = "https://api.airtable.com/v0/"
@@ -38,7 +41,7 @@ func fetchRecords(tableName string) ([]Record, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.Reader(resp.Body))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func createRecord(tableName string, fields map[string]interface{}) (Record, erro
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.Reader(resp.Body))
 	if err != nil {
 		return Record{}, err
 	}
@@ -112,7 +115,7 @@ func updateRecord(tableName, recordID string, fields map[string]interface{}) (Re
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.Reader(resp.Body))
 	if err != nil {
 		return Record{}, err
 	}
