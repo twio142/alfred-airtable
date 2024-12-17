@@ -12,13 +12,13 @@ import (
 func (a *Airtable) createLink(link *Link) error {
 	record := Record{
 		Fields: &map[string]interface{}{
-			"Name": link.Name,
-			"Note": link.Note,
-			"Url": link.Url,
+			"Name":     link.Name,
+			"Note":     link.Note,
+			"Url":      link.URL,
 			"Category": link.Category,
-			"Tags": link.Tags,
-			"Done": link.Done,
-			"Lists": link.ListIDs,
+			"Tags":     link.Tags,
+			"Done":     link.Done,
+			"Lists":    link.ListIDs,
 		},
 	}
 	records := []*Record{&record}
@@ -43,13 +43,13 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 	for _, link := range *links {
 		linkRecord := &Record{
 			Fields: &map[string]interface{}{
-				"Name": link.Name,
-				"Note": link.Note,
-				"Url": link.Url,
+				"Name":     link.Name,
+				"Note":     link.Note,
+				"Url":      link.URL,
 				"Category": link.Category,
-				"Tags": link.Tags,
-				"Done": link.Done,
-				"Lists": []string{list.ID},
+				"Tags":     link.Tags,
+				"Done":     link.Done,
+				"Lists":    []string{list.ID},
 			},
 		}
 		linkRecords = append(linkRecords, linkRecord)
@@ -61,25 +61,25 @@ func (a *Airtable) updateLink(link *Link) error {
 	record := Record{
 		ID: &link.ID,
 		Fields: &map[string]interface{}{
-			"Name": link.Name,
-			"Note": link.Note,
-			"Url": link.Url,
+			"Name":     link.Name,
+			"Note":     link.Note,
+			"Url":      link.URL,
 			"Category": link.Category,
-			"Tags": link.Tags,
-			"Done": link.Done,
-			"Lists": link.ListIDs,
+			"Tags":     link.Tags,
+			"Done":     link.Done,
+			"Lists":    link.ListIDs,
 		},
 	}
 	records := []*Record{&record}
 	return a.updateRecords("Links", records)
 }
 
-func (a *Airtable) updateList(list *List)	error {
+func (a *Airtable) updateList(list *List) error {
 	record := Record{
 		ID: &list.ID,
 		Fields: &map[string]interface{}{
-			"Name": list.Name,
-			"Note": list.Note,
+			"Name":  list.Name,
+			"Note":  list.Note,
 			"Links": list.LinkIDs,
 		},
 	}
@@ -128,7 +128,7 @@ func (a *Airtable) listToLinkCopier(c *Cache, list *List) error {
 	}
 	lines := []string{}
 	for _, link := range links {
-		line := fmt.Sprintf("- [%s](%s)", link.Name, link.Url)
+		line := fmt.Sprintf("- [%s](%s)", link.Name, link.URL)
 		lines = append(lines, line)
 	}
 	text := strings.Join(lines, "\n")
@@ -151,7 +151,7 @@ func (a *Airtable) linkCopierToList(file string) (List, error) {
 		matches := re.FindStringSubmatch(line)
 		if len(matches) == 3 {
 			link.Name = matches[1]
-			link.Url = matches[2]
+			link.URL = matches[2]
 			links = append(links, link)
 		}
 	}

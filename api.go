@@ -1,26 +1,26 @@
 package main
 
 import (
-	"time"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Interact with the Airtable API
 
 type Airtable struct {
-	baseURL string
-	baseID string
+	baseURL     string
+	baseID      string
 	accessToken string
 }
 
 type Record struct {
-	ID     *string                 `json:"id,omitempty"`
-	CreatedTime *time.Time         `json:"createdTime,omitempty"`
-	Fields *map[string]interface{} `json:"fields,omitempty"`
+	ID          *string                 `json:"id,omitempty"`
+	CreatedTime *time.Time              `json:"createdTime,omitempty"`
+	Fields      *map[string]interface{} `json:"fields,omitempty"`
 }
 
 type Response struct {
@@ -104,13 +104,14 @@ func (a *Airtable) fetchSchema(c *Cache) error {
 	for _, table := range response.Tables {
 		if table.Name == "Links" {
 			for _, field := range table.Fields {
-				if field.Name == "Tags" {
+				switch field.Name {
+				case "Tags":
 					if field.Options != nil {
 						for _, choice := range *field.Options.Choices {
 							tags = append(tags, choice.Name)
 						}
 					}
-				} else if field.Name == "Category" {
+				case "Category":
 					if field.Options != nil {
 						for _, choice := range *field.Options.Choices {
 							categories = append(categories, choice.Name)
