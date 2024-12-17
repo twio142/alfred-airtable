@@ -11,83 +11,77 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type Auth struct {
-	AccessToken      *string
-	ExpiresAt        *int64
-	RefreshToken     *string
-	RefreshExpiresAt *int64
+	*oauth2.Token
+	RefreshExpiry *time.Time
+}
+
+type OAuth struct {
+	authorizationCache map[string]string
+	authComplete       chan Auth
+	config             *oauth2.Config
 }
 
 func (a *Auth) isValid() bool {
-	return a.AccessToken != nil && a.ExpiresAt != nil && *a.ExpiresAt > time.Now().Unix()
+	return a.Token != nil && a.Expiry.After(time.Now())
 }
 
 func (a *Auth) isRefreshValid() bool {
-	return a.RefreshToken != nil && a.RefreshExpiresAt != nil && *a.RefreshExpiresAt > time.Now().Unix()
+	return a.RefreshToken != "" && a.RefreshExpiry != nil && a.RefreshExpiry.After(time.Now())
 }
 
 func (a *Auth) read(c *Cache) {
 	if accessToken, err := c.getData("AccessToken"); err == nil {
-		a.AccessToken = accessToken
+		a.AccessToken = *accessToken
 	}
-	if expiresAt, err := c.getData("ExpiresAt"); err == nil {
+	if expiresAt, err := c.getData("Expiry"); err == nil {
 		expiresAtInt, err := strconv.ParseInt(*expiresAt, 10, 64)
 		if err == nil {
-			a.ExpiresAt = &expiresAtInt
+			a.Expiry = time.Unix(expiresAtInt, 0)
 		}
 	}
 	if refreshToken, err := c.getData("RefreshToken"); err == nil {
-		a.RefreshToken = refreshToken
+		a.RefreshToken = *refreshToken
 	}
-	if refreshExpiresAt, err := c.getData("RefreshExpiresAt"); err == nil {
-		refreshExpiresAtInt, err := strconv.ParseInt(*refreshExpiresAt, 10, 64)
+	if RefreshExpiry, err := c.getData("RefreshExpiry"); err == nil {
+		RefreshExpiryInt, err := strconv.ParseInt(*RefreshExpiry, 10, 64)
+		RefreshExpiryTime := time.Unix(RefreshExpiryInt, 0)
 		if err == nil {
-			a.RefreshExpiresAt = &refreshExpiresAtInt
+			a.RefreshExpiry = &RefreshExpiryTime
 		}
 	}
 }
 
 func (a *Auth) write(c *Cache) {
-	if a.AccessToken != nil {
-		c.setData("AccessToken", *a.AccessToken)
+	if a.AccessToken != "" {
+		c.setData("AccessToken", a.AccessToken)
 	}
-	if a.ExpiresAt != nil {
-		c.setData("ExpiresAt", strconv.FormatInt(*a.ExpiresAt, 10))
+	if !a.Expiry.IsZero() {
+		c.setData("Expiry", strconv.FormatInt(a.Expiry.Unix(), 10))
 	}
-	if a.RefreshToken != nil {
-		c.setData("RefreshToken", *a.RefreshToken)
+	if a.RefreshToken != "" {
+		c.setData("RefreshToken", a.RefreshToken)
 	}
-	if a.RefreshExpiresAt != nil {
-		c.setData("RefreshExpiresAt", strconv.FormatInt(*a.RefreshExpiresAt, 10))
+	if !a.RefreshExpiry.IsZero() {
+		c.setData("RefreshExpiry", strconv.FormatInt(a.RefreshExpiry.Unix(), 10))
 	}
-}
-
-type OAuth struct {
-	clientID           string
-	clientSecret       string
-	port               string
-	redirectURI        string
-	scope              string
-	airtableURL        string
-	authorizationCache map[string]string
-	authComplete       chan Auth
 }
 
 func (o *OAuth) init() {
-	o.clientID = os.Getenv("CLIENT_ID")
-	o.clientSecret = os.Getenv("CLIENT_SECRET")
-	o.port = os.Getenv("PORT")
-	o.redirectURI = os.Getenv("REDIRECT_URI")
-	o.scope = os.Getenv("SCOPE")
-	if o.scope == "" {
-		o.scope = "data.records:read data.records:write schema.bases:read schema.bases:write"
-	}
-	o.airtableURL = os.Getenv("AIRTABLE_URL")
-	if o.airtableURL == "" {
-		o.airtableURL = "https://www.airtable.com"
+	o.config = &oauth2.Config{
+		ClientID:    os.Getenv("CLIENT_ID"),
+		RedirectURL: os.Getenv("REDIRECT_URI"),
+		Scopes:      []string{"data.records:read", "data.records:write", "schema.bases:read", "schema.bases:write"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://www.airtable.com/oauth2/v1/authorize",
+			TokenURL: "https://www.airtable.com/oauth2/v1/token",
+		},
 	}
 }
 
@@ -107,10 +101,9 @@ func (o *OAuth) handleRoot(w http.ResponseWriter, r *http.Request) {
 	codeChallenge := createCodeChallenge(codeVerifier)
 	o.authorizationCache[state] = codeVerifier
 
-	authorizationURL := fmt.Sprintf("%s/oauth2/v1/authorize?code_challenge=%s&code_challenge_method=S256&state=%s&client_id=%s&redirect_uri=%s&response_type=code&scope=%s",
-		o.airtableURL, codeChallenge, state, o.clientID, o.redirectURI, o.scope)
+	authCodeURL := o.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("code_challenge", codeChallenge), oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 
-	http.Redirect(w, r, authorizationURL, http.StatusFound)
+	http.Redirect(w, r, authCodeURL, http.StatusFound)
 }
 
 func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
@@ -130,20 +123,20 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
 	data := url.Values{}
-	data.Set("client_id", o.clientID)
+	data.Set("client_id", o.config.ClientID)
 	data.Set("code_verifier", codeVerifier)
-	data.Set("redirect_uri", o.redirectURI)
+	data.Set("redirect_uri", o.config.RedirectURL)
 	data.Set("code", code)
 	data.Set("grant_type", "authorization_code")
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/oauth2/v1/token", o.airtableURL), bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("POST", o.config.Endpoint.TokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if o.clientSecret != "" {
-		req.SetBasicAuth(o.clientID, o.clientSecret)
+	if o.config.ClientSecret != "" {
+		req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
 	}
 
 	client := &http.Client{}
@@ -166,10 +159,20 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseData["expires_at"] = responseData["expires_in"].(float64) + float64(time.Now().Unix())
-	responseData["refresh_expires_at"] = responseData["refresh_expires_in"].(float64) + float64(time.Now().Unix())
+	expiry := time.Now().Add(time.Duration(responseData["expires_in"].(float64)) * time.Second)
+	refreshExpiry := time.Now().Add(time.Duration(responseData["refresh_expires_in"].(float64)) * time.Second)
 
-	credentials, err := json.Marshal(responseData)
+	newAuth := &Auth{
+		Token: &oauth2.Token{
+			AccessToken:  responseData["access_token"].(string),
+			TokenType:    responseData["token_type"].(string),
+			RefreshToken: responseData["refresh_token"].(string),
+			Expiry:       expiry,
+		},
+		RefreshExpiry: &refreshExpiry,
+	}
+
+	credentials, err := json.Marshal(newAuth)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -180,34 +183,25 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresAt := int64(responseData["expires_in"].(float64)) + time.Now().Unix()
-	refreshExpiresAt := int64(responseData["refresh_expires_in"].(float64)) + time.Now().Unix()
-
-	newAuth := Auth{
-		AccessToken:      stringPtr(responseData["access_token"].(string)),
-		ExpiresAt:        &expiresAt,
-		RefreshToken:     stringPtr(responseData["refresh_token"].(string)),
-		RefreshExpiresAt: &refreshExpiresAt,
-	}
-	o.authComplete <- newAuth
+	o.authComplete <- *newAuth
 }
 
 func (o *OAuth) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	refreshToken := r.URL.Query().Get("refresh_token")
 	data := url.Values{}
-	data.Set("client_id", o.clientID)
+	data.Set("client_id", o.config.ClientID)
 	data.Set("refresh_token", refreshToken)
-	data.Set("scope", o.scope)
+	data.Set("scope", strings.Join(o.config.Scopes, " "))
 	data.Set("grant_type", "refresh_token")
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/oauth2/v1/token", o.airtableURL), bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("POST", o.config.Endpoint.TokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if o.clientSecret != "" {
-		req.SetBasicAuth(o.clientID, o.clientSecret)
+	if o.config.ClientSecret != "" {
+		req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
 	}
 
 	client := &http.Client{}
@@ -230,10 +224,20 @@ func (o *OAuth) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseData["expires_at"] = responseData["expires_in"].(float64) + float64(time.Now().Unix())
-	responseData["refresh_expires_at"] = responseData["refresh_expires_in"].(float64) + float64(time.Now().Unix())
+	expiry := time.Now().Add(time.Duration(responseData["expires_in"].(float64)) * time.Second)
+	refreshExpiry := time.Now().Add(time.Duration(responseData["refresh_expires_in"].(float64)) * time.Second)
 
-	credentials, err := json.Marshal(responseData)
+	newAuth := &Auth{
+		Token: &oauth2.Token{
+			AccessToken:  responseData["access_token"].(string),
+			TokenType:    responseData["token_type"].(string),
+			RefreshToken: responseData["refresh_token"].(string),
+			Expiry:       expiry,
+		},
+		RefreshExpiry: &refreshExpiry,
+	}
+
+	credentials, err := json.Marshal(newAuth)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -244,16 +248,7 @@ func (o *OAuth) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresAt := int64(responseData["expires_in"].(float64)) + time.Now().Unix()
-	refreshExpiresAt := int64(responseData["refresh_expires_in"].(float64)) + time.Now().Unix()
-
-	newAuth := Auth{
-		AccessToken:      stringPtr(responseData["access_token"].(string)),
-		ExpiresAt:        &expiresAt,
-		RefreshToken:     stringPtr(responseData["refresh_token"].(string)),
-		RefreshExpiresAt: &refreshExpiresAt,
-	}
-	o.authComplete <- newAuth
+	o.authComplete <- *newAuth
 }
 
 func (o *OAuth) startServer() {
@@ -261,56 +256,79 @@ func (o *OAuth) startServer() {
 	http.HandleFunc("/airtable-oauth", o.handleAirtableOAuth)
 	http.HandleFunc("/refresh", o.handleRefresh)
 
-	log.Printf("Server listening on port %s", o.port)
-	if err := http.ListenAndServe(":"+o.port, nil); err != nil {
+	redirectURL := o.config.RedirectURL
+	u, err := url.Parse(redirectURL)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	port := u.Port()
+	log.Printf("Server listening on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func getAuth(c *Cache) (Auth, error) {
+func (a *Airtable) getAuth() error {
 	o := OAuth{}
 	o.init()
 
+	redirectURL := o.config.RedirectURL
+	u, err := url.Parse(redirectURL)
+	if err != nil {
+		return err
+	}
+	baseURL := u.Scheme + "://" + u.Host
+
 	auth := Auth{}
+	auth.read(a.Cache)
 	if auth.isValid() {
-		return auth, nil
+		return nil
 	} else if auth.isRefreshValid() {
 		go o.startServer()
-		resp, err := http.Get(fmt.Sprintf("http://localhost:%s/refresh?refresh_token=%s", o.port, *auth.RefreshToken))
+		resp, err := http.Get(fmt.Sprintf("%s/refresh?refresh_token=%s", baseURL, auth.RefreshToken))
 		if err != nil {
-			return Auth{}, err
+			return err
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return Auth{}, err
+			return err
 		}
 
 		var responseData map[string]interface{}
 		if err := json.Unmarshal(body, &responseData); err != nil {
-			return Auth{}, err
+			return err
 		}
 
-		expiresAt := int64(responseData["expires_in"].(float64)) + time.Now().Unix()
-		refreshExpiresAt := int64(responseData["refresh_expires_in"].(float64)) + time.Now().Unix()
+		expiry := int64(responseData["expires_in"].(float64)) + time.Now().Unix()
+		RefreshExpiry := int64(responseData["refresh_expires_in"].(float64)) + time.Now().Unix()
+		RefreshExpiryTime := time.Unix(RefreshExpiry, 0)
 
 		newAuth := Auth{
-			AccessToken:      stringPtr(responseData["access_token"].(string)),
-			ExpiresAt:        &expiresAt,
-			RefreshToken:     stringPtr(responseData["refresh_token"].(string)),
-			RefreshExpiresAt: &refreshExpiresAt,
+			Token: &oauth2.Token{
+				AccessToken:  responseData["access_token"].(string),
+				TokenType:    responseData["token_type"].(string),
+				RefreshToken: responseData["refresh_token"].(string),
+				Expiry:       time.Unix(expiry, 0),
+			},
+			RefreshExpiry: &RefreshExpiryTime,
 		}
-		return newAuth, nil
+		a.Auth = &newAuth
+
+		return nil
 	}
 
 	go o.startServer()
-	cmd := exec.Command("open", fmt.Sprintf("http://localhost:%s", o.port))
+	cmd := exec.Command("open", baseURL)
 	if err := cmd.Start(); err != nil {
-		return Auth{}, err
+		return err
 	}
 
 	newAuth := <-o.authComplete
-	newAuth.write(c)
-	return newAuth, nil
+	newAuth.write(a.Cache)
+	a.Auth = &newAuth
+
+	return nil
 }

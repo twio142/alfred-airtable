@@ -12,9 +12,10 @@ import (
 // Interact with the Airtable API
 
 type Airtable struct {
-	baseURL     string
-	baseID      string
-	accessToken string
+	BaseURL string
+	BaseID  string
+	Auth    *Auth
+	Cache   *Cache
 }
 
 type Record struct {
@@ -25,14 +26,20 @@ type Record struct {
 
 type Response struct {
 	Records []Record `json:"records"`
+	Offset  *string  `json:"offset,omitempty"`
 }
 
-func (a *Airtable) fetchRecords(tableName string, params map[string]string) ([]Record, error) {
-	// curl https://api.airtable.com/v0/{baseID}/{tableId}?filterByFormula=IS_AFTER(LAST_MODIFIED_TIME()%2C{CACHED_AT})&fields=... -H 'Authorization: Bearer <access_token>'
-	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+func (a *Airtable) fetchRecords(tableName string, params map[string]interface{}) ([]Record, error) {
+	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	searchParams := []string{}
 	for key, value := range params {
-		searchParams = append(searchParams, fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+		if str, ok := value.(string); ok {
+			searchParams = append(searchParams, fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(str)))
+		} else if slice, ok := value.([]string); ok {
+			for _, str := range slice {
+				searchParams = append(searchParams, fmt.Sprintf("%s[]=%s", url.QueryEscape(key), url.QueryEscape(str)))
+			}
+		}
 	}
 	u = u + "?" + strings.Join(searchParams, "&")
 	client := &http.Client{}
@@ -40,7 +47,7 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]string) ([]R
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -57,17 +64,24 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]string) ([]R
 		return nil, err
 	}
 
+	if response.Offset != nil {
+		params["offset"] = *response.Offset
+		if records, err := a.fetchRecords(tableName, params); err == nil {
+			response.Records = append(response.Records, records...)
+		}
+	}
+
 	return response.Records, nil
 }
 
-func (a *Airtable) fetchSchema(c *Cache) error {
-	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.baseID)
+func (a *Airtable) fetchSchema() error {
+	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.BaseID)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -122,14 +136,14 @@ func (a *Airtable) fetchSchema(c *Cache) error {
 		}
 	}
 
-	c.setData("Tags", strings.Join(tags, ","))
-	c.setData("Categories", strings.Join(categories, ","))
+	a.Cache.setData("Tags", strings.Join(tags, ","))
+	a.Cache.setData("Categories", strings.Join(categories, ","))
 
 	return nil
 }
 
 func (a *Airtable) createRecords(tableName string, records []*Record) error {
-	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	client := &http.Client{}
 
 	data := map[string]interface{}{
@@ -144,7 +158,7 @@ func (a *Airtable) createRecords(tableName string, records []*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -170,7 +184,7 @@ func (a *Airtable) createRecords(tableName string, records []*Record) error {
 }
 
 func (a *Airtable) updateRecords(tableName string, records []*Record) error {
-	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	client := &http.Client{}
 
 	data := map[string]interface{}{
@@ -185,7 +199,7 @@ func (a *Airtable) updateRecords(tableName string, records []*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -211,7 +225,7 @@ func (a *Airtable) updateRecords(tableName string, records []*Record) error {
 }
 
 func (a *Airtable) deleteRecords(tableName string, records []*Record) error {
-	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	searchParams := []string{}
 	for _, record := range records {
 		searchParams = append(searchParams, fmt.Sprintf("records[]=%s", *record.ID))
@@ -222,7 +236,7 @@ func (a *Airtable) deleteRecords(tableName string, records []*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {

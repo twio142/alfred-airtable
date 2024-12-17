@@ -16,29 +16,29 @@ type Metadata struct {
 }
 
 type Link struct {
-	Name         string
-	Note         string
-	URL          string
-	Category     string
-	Tags         []string
-	Created      time.Time
-	LastModified time.Time
-	RecordURL    string
-	ID           string
-	Done         bool
-	ListIDs      []string
-	ListNames    []string
+	Name         string    `json:"Name"`
+	Note         string    `json:"Note"`
+	URL          string    `json:"URL"`
+	Category     string    `json:"Category"`
+	Tags         []string  `json:"Tags"`
+	Created      time.Time `json:"Created"`
+	LastModified time.Time `json:"Last Modified"`
+	RecordURL    string    `json:"Record URL"`
+	ID           string    `json:"ID"`
+	Done         bool      `json:"Done"`
+	ListIDs      []string  `json:"Lists"`
+	ListNames    []string  `json:"List-Names"`
 }
 
 type List struct {
-	Name         string
-	Note         string
-	LinkIDs      []string
-	Created      time.Time
-	LastModified time.Time
-	RecordURL    string
-	Status       string
-	ID           string
+	Name         string    `json:"Name"`
+	Note         string    `json:"Note"`
+	LinkIDs      []string  `json:"Links"`
+	Created      time.Time `json:"Created"`
+	LastModified time.Time `json:"Last Modified"`
+	RecordURL    string    `json:"Record URL"`
+	Status       string    `json:"Status"`
+	ID           string    `json:"ID"`
 }
 
 type Cache struct {
@@ -64,12 +64,12 @@ func (c *Cache) init() error {
   CREATE TABLE IF NOT EXISTS Links (
       Name TEXT,
       Note TEXT,
-      Url TEXT,
+      URL TEXT,
       Category TEXT,
       Tags TEXT,
       Created DATETIME,
       LastModified DATETIME,
-      RecordUrl TEXT,
+      RecordURL TEXT,
       ID TEXT PRIMARY KEY,
       Done BOOLEAN,
       ListIDs TEXT
@@ -80,7 +80,7 @@ func (c *Cache) init() error {
       Note TEXT,
       Created DATETIME,
       LastModified DATETIME,
-      RecordUrl TEXT,
+      RecordURL TEXT,
       ID TEXT PRIMARY KEY
   );
   `
@@ -100,7 +100,7 @@ func (c *Cache) getLinks(listID *string) ([]Link, error) {
 	}
 
 	selectQuery := `
-  SELECT Name, Note, Url, Category, Tags, Created, LastModified, RecordUrl, ID, Done, ListIDs,
+  SELECT Name, Note, URL, Category, Tags, Created, LastModified, RecordURL, ID, Done, ListIDs,
       GROUP_CONCAT(Lists.Name, '\n') AS ListNames
   FROM Links
   LEFT JOIN Lists ON Links.ListIDs LIKE '%' || Lists.ID || '%'
@@ -147,7 +147,7 @@ func (c *Cache) getLists() ([]List, error) {
 	}
 
 	selectQuery := `
-  SELECT Name, Note, Created, LastModified, RecordUrl, ID
+  SELECT Name, Note, Created, LastModified, RecordURL, ID
       COUNT(Links.ID) AS total_links,
       SUM(CASE WHEN Links.Done THEN 1 ELSE 0 END) AS done_links
   FROM
@@ -194,13 +194,36 @@ func (c *Cache) saveLinks(links []Link) error {
 
 	insertQuery := `
   INSERT OR REPLACE INTO Links (
-    Name, Note, Url, Category, Tags, Created, LastModified, RecordUrl, ID, Done, ListIDs
+    Name, Note, URL, Category, Tags, Created, LastModified, RecordURL, ID, Done, ListIDs
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 	for _, link := range links {
 		tags := strings.Join(link.Tags, ",")
 		listIDs := strings.Join(link.ListIDs, ",")
 		_, err = c.db.Exec(insertQuery, link.Name, link.Note, link.URL, link.Category, tags, link.Created, link.LastModified, link.RecordURL, link.ID, link.Done, listIDs)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.setData("CachedAt", time.Now().Format(time.RFC3339))
+
+	return nil
+}
+
+func (c *Cache) saveLists(lists []List) error {
+	err := c.init()
+	if err != nil {
+		return err
+	}
+
+	insertQuery := `
+	INSERT OR REPLACE INTO Lists (
+		Name, Note, Created, LastModified, RecordURL, ID
+	) VALUES (?, ?, ?, ?, ?, ?)
+	`
+	for _, list := range lists {
+		_, err = c.db.Exec(insertQuery, list.Name, list.Note, list.Created, list.LastModified, list.RecordURL, list.ID)
 		if err != nil {
 			return err
 		}
@@ -317,4 +340,3 @@ func (c *Cache) clearCache() error {
 	}
 	return nil
 }
-

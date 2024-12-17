@@ -5,9 +5,110 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Interact with the Airtable database
+
+func (a *Airtable) cacheLinks() ([]Link, error) {
+	cachedAtStr, _ := a.Cache.getData("CachedAt")
+	var cachedAt time.Time
+	if cachedAtStr != nil {
+		cachedAt, _ = time.Parse(time.RFC3339, *cachedAtStr)
+	} else {
+		cachedAt = time.Time{}
+	}
+	params := map[string]interface{}{
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", cachedAt.Format(time.RFC3339)),
+		"fields":          []string{"Name", "Note", "URL", "Category", "Tags", "Last Modified", "Record URL", "Done", "Lists"},
+	}
+	records, err := a.fetchRecords("Links", params)
+	if err != nil {
+		return nil, err
+	}
+	links := []Link{}
+	for _, record := range records {
+		link := Link{
+			Name:         getStringField(*record.Fields, "Name"),
+			Note:         getStringField(*record.Fields, "Note"),
+			URL:          getStringField(*record.Fields, "URL"),
+			Category:     getStringField(*record.Fields, "Category"),
+			Tags:         getStringSliceField(*record.Fields, "Tags"),
+			Created:      *record.CreatedTime,
+			LastModified: getTimeField(*record.Fields, "Last Modified"),
+			RecordURL:    getStringField(*record.Fields, "Record URL"),
+			ID:           *record.ID,
+			Done:         getBoolField(*record.Fields, "Done"),
+			ListIDs:      getStringSliceField(*record.Fields, "Lists"),
+		}
+		links = append(links, link)
+	}
+	a.Cache.saveLinks(links)
+	return links, nil
+}
+
+func (a *Airtable) clearDeletedLinks() error {
+	params := map[string]interface{}{
+		"fields": []string{"Name"},
+	}
+	records, err := a.fetchRecords("Links", params)
+	if err != nil {
+		return err
+	}
+	linkIDs := []string{}
+	for _, record := range records {
+		linkIDs = append(linkIDs, *record.ID)
+	}
+	return a.Cache.clearDeletedRecords("Links", linkIDs)
+}
+
+func (a *Airtable) cacheLists() ([]List, error) {
+	cachedAtStr, _ := a.Cache.getData("CachedAt")
+	var cachedAt time.Time
+	if cachedAtStr != nil {
+		cachedAt, _ = time.Parse(time.RFC3339, *cachedAtStr)
+	} else {
+		cachedAt = time.Time{}
+	}
+	params := map[string]interface{}{
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", cachedAt.Format(time.RFC3339)),
+		"fields":          []string{"Name", "Note", "Last Modified", "Record URL", "Links"},
+	}
+	records, err := a.fetchRecords("Lists", params)
+	if err != nil {
+		return nil, err
+	}
+	lists := []List{}
+	for _, record := range records {
+		list := List{
+			Name:         (*record.Fields)["Name"].(string),
+			Note:         (*record.Fields)["Note"].(string),
+			Created:      (*record.CreatedTime),
+			LastModified: (*record.Fields)["Last Modified"].(time.Time),
+			RecordURL:    (*record.Fields)["Record URL"].(string),
+			ID:           (*record.ID),
+			LinkIDs:      (*record.Fields)["Links"].([]string),
+		}
+		lists = append(lists, list)
+	}
+	a.Cache.saveLists(lists)
+	return lists, nil
+}
+
+func (a *Airtable) clearDeletedLists() error {
+	params := map[string]interface{}{
+		"fields": []string{"Name"},
+	}
+	records, err := a.fetchRecords("Lists", params)
+	if err != nil {
+		return err
+	}
+	listIDs := []string{}
+	for _, record := range records {
+		listIDs = append(listIDs, *record.ID)
+	}
+	return a.Cache.clearDeletedRecords("Lists", listIDs)
+}
 
 func (a *Airtable) createLink(link *Link) error {
 	record := Record{
@@ -120,9 +221,9 @@ func (a *Airtable) deleteList(list *List, deleteLinks bool) error {
 	return nil
 }
 
-func (a *Airtable) listToLinkCopier(c *Cache, list *List) error {
+func (a *Airtable) listToLinkCopier(list *List) error {
 	name := list.Name
-	links, err := c.getLinks(&list.ID)
+	links, err := a.Cache.getLinks(&list.ID)
 	if err != nil {
 		return err
 	}
