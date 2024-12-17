@@ -1,142 +1,228 @@
 package main
 
 import (
-	"encoding/json"
+	"time"
 	"fmt"
-	"io"
+	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 // Interact with the Airtable API
-// Fetch, create, update, and delete records
 
-const (
-	baseURL = "https://api.airtable.com/v0/"
-	apiKey  = "your_api_key"
-	baseID  = "your_base_id"
-)
+type Airtable struct {
+	baseURL string
+	baseID string
+	accessToken string
+}
 
 type Record struct {
-	ID     string                 `json:"id"`
-	Fields map[string]interface{} `json:"fields"`
+	ID     *string                 `json:"id,omitempty"`
+	CreatedTime *time.Time         `json:"createdTime,omitempty"`
+	Fields *map[string]interface{} `json:"fields,omitempty"`
 }
 
 type Response struct {
 	Records []Record `json:"records"`
 }
 
-func fetchRecords(tableName string) ([]Record, error) {
-	url := fmt.Sprintf("%s%s/%s", baseURL, baseID, tableName)
-	req, err := http.NewRequest("GET", url, nil)
+func (a *Airtable) fetchRecords(tableName string, params map[string]string) ([]Record, error) {
+	// curl https://api.airtable.com/v0/{baseID}/{tableId}?filterByFormula=IS_AFTER(LAST_MODIFIED_TIME()%2C{CACHED_AT})&fields=... -H 'Authorization: Bearer <access_token>'
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	searchParams := []string{}
+	for key, value := range params {
+		searchParams = append(searchParams, fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+	}
+	u = u + "?" + strings.Join(searchParams, "&")
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Authorization", "Bearer "+a.accessToken)
 
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.Reader(resp.Body))
-	if err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch records: %s", resp.Status)
 	}
 
 	var response Response
-	if err := json.Unmarshal(body, &response); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
 
 	return response.Records, nil
 }
 
-func createRecord(tableName string, fields map[string]interface{}) (Record, error) {
-	url := fmt.Sprintf("%s%s/%s", baseURL, baseID, tableName)
-	data := map[string]interface{}{
-		"fields": fields,
-	}
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return Record{}, err
-	}
-
-	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonData)))
-	if err != nil {
-		return Record{}, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
+func (a *Airtable) fetchSchema(c *Cache) error {
+	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.baseID)
 	client := &http.Client{}
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+
 	resp, err := client.Do(req)
 	if err != nil {
-		return Record{}, err
+		return err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.Reader(resp.Body))
-	if err != nil {
-		return Record{}, err
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch schema: %s", resp.Status)
 	}
 
-	var record Record
-	if err := json.Unmarshal(body, &record); err != nil {
-		return Record{}, err
+	type MetaResponse struct {
+		Tables []struct {
+			Name   string `json:"name"`
+			Fields []struct {
+				Name    string `json:"name"`
+				Options *struct {
+					Choices *[]struct {
+						Name string `json:"name"`
+					} `json:"choices"`
+				} `json:"options"`
+			} `json:"fields"`
+		} `json:"tables"`
 	}
 
-	return record, nil
+	var response MetaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return err
+	}
+
+	tags := []string{}
+	categories := []string{}
+
+	for _, table := range response.Tables {
+		if table.Name == "Links" {
+			for _, field := range table.Fields {
+				if field.Name == "Tags" {
+					if field.Options != nil {
+						for _, choice := range *field.Options.Choices {
+							tags = append(tags, choice.Name)
+						}
+					}
+				} else if field.Name == "Category" {
+					if field.Options != nil {
+						for _, choice := range *field.Options.Choices {
+							categories = append(categories, choice.Name)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	c.setData("Tags", strings.Join(tags, ","))
+	c.setData("Categories", strings.Join(categories, ","))
+
+	return nil
 }
 
-func updateRecord(tableName, recordID string, fields map[string]interface{}) (Record, error) {
-	url := fmt.Sprintf("%s%s/%s/%s", baseURL, baseID, tableName, recordID)
+func (a *Airtable) createRecords(tableName string, records []*Record) error {
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	client := &http.Client{}
+
 	data := map[string]interface{}{
-		"fields": fields,
+		"records": records,
 	}
 	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return Record{}, err
-	}
-
-	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonData)))
-	if err != nil {
-		return Record{}, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return Record{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.Reader(resp.Body))
-	if err != nil {
-		return Record{}, err
-	}
-
-	var record Record
-	if err := json.Unmarshal(body, &record); err != nil {
-		return Record{}, err
-	}
-
-	return record, nil
-}
-
-func deleteRecord(tableName, recordID string) error {
-	url := fmt.Sprintf("%s%s/%s/%s", baseURL, baseID, tableName, recordID)
-	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req, err := http.NewRequest("POST", u, strings.NewReader(string(jsonData)))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to create records: %s", resp.Status)
+	}
+
+	var response Response
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return err
+	}
+
+	records = make([]*Record, len(response.Records))
+	for i, record := range response.Records {
+		records[i] = &record
+	}
+	return nil
+}
+
+func (a *Airtable) updateRecords(tableName string, records []*Record) error {
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
+
+	data := map[string]interface{}{
+		"records": records,
+	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PATCH", u, strings.NewReader(string(jsonData)))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update records: %s", resp.Status)
+	}
+
+	var response Response
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return err
+	}
+
+	records = make([]*Record, len(response.Records))
+	for i, record := range response.Records {
+		records[i] = &record
+	}
+	return nil
+}
+
+func (a *Airtable) deleteRecords(tableName string, records []*Record) error {
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
+	searchParams := []string{}
+	for _, record := range records {
+		searchParams = append(searchParams, fmt.Sprintf("records[]=%s", *record.ID))
+	}
+	u = u + "?" + strings.Join(searchParams, "&")
+	client := &http.Client{}
+	req, err := http.NewRequest("DELETE", u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+a.accessToken)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
