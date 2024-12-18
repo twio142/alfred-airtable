@@ -25,7 +25,7 @@ func TestAuth_isValid(t *testing.T) {
 		BaseID:  os.Getenv("BASE_ID"),
 		DBPath:  "cache_test.db",
 	}
-	airtable.Cache = &Cache{file: airtable.DBPath}
+	airtable.Cache = &Cache{File: airtable.DBPath}
 	err := airtable.Cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
@@ -53,7 +53,7 @@ func TestAuth_isRefreshValid(t *testing.T) {
 		BaseID:  os.Getenv("BASE_ID"),
 		DBPath:  "cache_test.db",
 	}
-	airtable.Cache = &Cache{file: airtable.DBPath}
+	airtable.Cache = &Cache{File: airtable.DBPath}
 	err := airtable.Cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
@@ -76,7 +76,7 @@ func TestAuth_isRefreshValid(t *testing.T) {
 }
 
 func TestAuth_read(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
+	cache := &Cache{File: ":memory:"}
 	cache.init()
 	cache.setData("AccessToken", "test_token")
 	cache.setData("Expiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
@@ -95,7 +95,7 @@ func TestAuth_read(t *testing.T) {
 }
 
 func TestAuth_write(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
+	cache := &Cache{File: ":memory:"}
 	cache.init()
 
 	auth := &Auth{
@@ -121,7 +121,7 @@ func TestAuth_write(t *testing.T) {
 func TestAuth(t *testing.T) {
 	a := &Airtable{
 		Auth:  &Auth{},
-		Cache: &Cache{file: ":memory:"},
+		Cache: &Cache{File: ":memory:"},
 	}
 	a.Cache.init()
 
@@ -172,7 +172,7 @@ func TestAuth(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	a := &Airtable{
 		Auth:  &Auth{},
-		Cache: &Cache{file: ":memory:"},
+		Cache: &Cache{File: ":memory:"},
 	}
 	a.Cache.init()
 

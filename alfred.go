@@ -8,8 +8,8 @@ import (
 )
 
 type Icon struct {
-	Path string `json:"path,omitempty"`
-	Type string `json:"type,omitempty"`
+	Path *string `json:"path,omitempty"`
+	Type *string `json:"type,omitempty"`
 }
 
 type Mod struct {
@@ -20,7 +20,7 @@ type Mod struct {
 	Variables map[string]string `json:"variables,omitempty"`
 }
 
-func (m *Mod) SetVar(name string, value string) {
+func (m *Mod) setVar(name string, value string) {
 	if m.Variables == nil {
 		m.Variables = make(map[string]string)
 	}
@@ -28,33 +28,34 @@ func (m *Mod) SetVar(name string, value string) {
 }
 
 type Item struct {
-	Title        string `json:"title"`
-	Subtitle     string `json:"subtitle,omitempty"`
-	Arg          string `json:"arg,omitempty"`
-	Valid        *bool  `json:"valid,omitempty"`
-	AutoComplete string `json:"autocomplete,omitempty"`
-	Type         string `json:"type,omitempty"`
+	Title        string  `json:"title"`
+	Subtitle     string  `json:"subtitle,omitempty"`
+	Arg          string  `json:"arg,omitempty"`
+	Valid        *bool   `json:"valid,omitempty"`
+	AutoComplete *string `json:"autocomplete,omitempty"`
+	Type         *string `json:"type,omitempty"`
+	Match        *string `json:"match,omitempty"`
 	Text         struct {
-		Copy      string `json:"copy,omitempty"`
-		LargeType string `json:"largetype,omitempty"`
+		Copy      *string `json:"copy,omitempty"`
+		LargeType *string `json:"largetype,omitempty"`
 	} `json:"text"`
-	QuickLookURL string            `json:"quicklookurl,omitempty"`
-	Icon         *Icon             `json:"icon,omitempty"`
-	Variables    map[string]string `json:"variables,omitempty"`
-	Mods         struct {
-		Cmd   *Mod `json:"cmd,omitempty"`
-		Alt   *Mod `json:"alt,omitempty"`
-		Shift *Mod `json:"shift,omitempty"`
-		Ctrl  *Mod `json:"ctrl,omitempty"`
-		Fn    *Mod `json:"fn,omitempty"`
-	} `json:"mods"`
+	Action struct {
+		Text *string `json:"text,omitempty"`
+		File *string `json:"file,omitempty"`
+		URL  *string `json:"url,omitempty"`
+	} `json:"action,omitempty"`
+	QuickLookURL *string            `json:"quicklookurl,omitempty"`
+	Icon         *Icon              `json:"icon,omitempty"`
+	Variables    *map[string]string `json:"variables,omitempty"`
+	Mods         *map[string]Mod    `json:"mods"`
 }
 
-func (i *Item) SetVar(name string, value string) {
+func (i *Item) setVar(name string, value string) {
 	if i.Variables == nil {
-		i.Variables = make(map[string]string)
+		variables := make(map[string]string)
+		i.Variables = &variables
 	}
-	i.Variables[name] = value
+	(*i.Variables)[name] = value
 }
 
 type Workflow struct {
@@ -62,11 +63,11 @@ type Workflow struct {
 	Variables map[string]string `json:"variables,omitempty"`
 }
 
-func (w *Workflow) AddItem(item Item) {
+func (w *Workflow) addItem(item Item) {
 	w.Items = append(w.Items, item)
 }
 
-func (w *Workflow) WarnEmpty(s ...string) {
+func (w *Workflow) warnEmpty(s ...string) {
 	title := "No Result Found"
 	if len(s) > 0 && s[0] != "" {
 		title = s[0]
@@ -80,19 +81,19 @@ func (w *Workflow) WarnEmpty(s ...string) {
 		{
 			Title: title,
 			Valid: &valid,
-			Icon:  &Icon{Path: icon},
+			Icon:  &Icon{Path: &icon},
 		},
 	}
 }
 
-func (w *Workflow) SetVar(name string, value string) {
+func (w *Workflow) setVar(name string, value string) {
 	if w.Variables == nil {
 		w.Variables = make(map[string]string)
 	}
 	w.Variables[name] = value
 }
 
-func (w *Workflow) Output() {
+func (w *Workflow) output() {
 	jsonItems, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		log.Println("Error:", err)

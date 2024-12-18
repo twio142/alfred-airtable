@@ -16,84 +16,90 @@ type Metadata struct {
 }
 
 type Link struct {
-	Name         string    `json:"Name"`
-	Note         string    `json:"Note"`
-	URL          string    `json:"URL"`
-	Category     string    `json:"Category"`
-	Tags         []string  `json:"Tags"`
-	Created      time.Time `json:"Created"`
-	LastModified time.Time `json:"Last Modified"`
-	RecordURL    string    `json:"Record URL"`
-	ID           string    `json:"ID"`
-	Done         bool      `json:"Done"`
-	ListIDs      []string  `json:"Lists"`
-	ListNames    []string  `json:"List-Names"`
+	Name         *string    `json:"Name,omitempty"`
+	Note         *string    `json:"Note,omitempty"`
+	URL          *string    `json:"URL,omitempty"`
+	Category     *string    `json:"Category,omitempty"`
+	Tags         []string   `json:"Tags,omitempty"`
+	Created      *time.Time `json:"Created,omitempty"`
+	LastModified *time.Time `json:"Last Modified,omitempty"`
+	RecordURL    *string    `json:"Record URL,omitempty"`
+	ID           *string    `json:"ID,omitempty"`
+	Done         bool       `json:"Done"`
+	ListIDs      []string   `json:"Lists,omitempty"`
+	ListNames    []string   `json:"List-Names,omitempty"`
 }
 
 type List struct {
-	Name         string    `json:"Name"`
-	Note         string    `json:"Note"`
-	LinkIDs      []string  `json:"Links"`
-	Created      time.Time `json:"Created"`
-	LastModified time.Time `json:"Last Modified"`
-	RecordURL    string    `json:"Record URL"`
-	Status       string    `json:"Status"`
-	ID           string    `json:"ID"`
+	Name         *string    `json:"Name,omitempty"`
+	Note         *string    `json:"Note,omitempty"`
+	LinkIDs      []string   `json:"Links,omitempty"`
+	LinkNames    []string   `json:"Link Names,omitempty"`
+	Created      *time.Time `json:"Created,omitempty"`
+	LastModified *time.Time `json:"Last Modified,omitempty"`
+	RecordURL    *string    `json:"Record URL,omitempty"`
+	LinksDone    *int       `json:"Links Done,omitempty"`
+	Status       *string    `json:"Status,omitempty"`
+	ID           *string    `json:"ID,omitempty"`
 }
 
 type Cache struct {
-	file string
-	db   *sql.DB
+	File         string
+	DB           *sql.DB
+	LastCachedAt time.Time
 }
 
 func (c *Cache) init() error {
-	if c.db != nil {
-		return nil
-	}
-	db, err := sql.Open("sqlite3", c.file)
-	if err != nil {
-		return err
-	}
+	if c.DB == nil {
+		db, err := sql.Open("sqlite3", c.File)
+		if err != nil {
+			return err
+		}
 
-	createTableQuery := `
-  CREATE TABLE IF NOT EXISTS Metadata (
-	  Key TEXT PRIMARY KEY,
-	  Value TEXT
-  );
+		createTableQuery := `
+		CREATE TABLE IF NOT EXISTS Metadata (
+			Key TEXT PRIMARY KEY,
+			Value TEXT
+		);
 
-  CREATE TABLE IF NOT EXISTS Links (
-	  Name TEXT,
-	  Note TEXT,
-	  URL TEXT,
-	  Category TEXT,
-	  Tags TEXT,
-	  Created DATETIME,
-	  LastModified DATETIME,
-	  RecordURL TEXT,
-	  ID TEXT PRIMARY KEY,
-	  Done BOOLEAN,
-	  ListIDs TEXT
-  );
+		CREATE TABLE IF NOT EXISTS Links (
+			Name TEXT,
+			Note TEXT,
+			URL TEXT,
+			Category TEXT,
+			Tags TEXT,
+			Created DATETIME,
+			LastModified DATETIME,
+			RecordURL TEXT,
+			ID TEXT PRIMARY KEY,
+			Done BOOLEAN,
+			ListIDs TEXT
+		);
 
-  CREATE TABLE IF NOT EXISTS Lists (
-	  Name TEXT,
-	  Note TEXT,
-	  Created DATETIME,
-	  LastModified DATETIME,
-	  RecordURL TEXT,
-	  ID TEXT PRIMARY KEY
-  );
+		CREATE TABLE IF NOT EXISTS Lists (
+			Name TEXT,
+			Note TEXT,
+			Created DATETIME,
+			LastModified DATETIME,
+			RecordURL TEXT,
+			ID TEXT PRIMARY KEY
+		);
   `
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
-		return err
+		_, err = db.Exec(createTableQuery)
+		if err != nil {
+			return err
+		}
+
+		c.DB = db
 	}
 
-	c.db = db
+	if str, _ := c.getData("CachedAt"); str != nil {
+		c.LastCachedAt, _ = time.Parse(time.RFC3339, *str)
+	}
 	return nil
 }
 
-func (c *Cache) getLinks(listID *string) ([]Link, error) {
+func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 	err := c.init()
 	if err != nil {
 		return nil, err
@@ -106,17 +112,34 @@ func (c *Cache) getLinks(listID *string) ([]Link, error) {
   LEFT JOIN Lists ON Links.ListIDs LIKE '%' || Lists.ID || '%'
   `
 
-	if listID != nil {
-		selectQuery += `WHERE Links.ListIDs LIKE '%' || ? || '%' `
+	if list != nil {
+		if list.ID != nil {
+			selectQuery += `WHERE Links.ListIDs LIKE '%' || ? || '%' `
+		} else if list.Name != nil {
+			selectQuery += `WHERE Lists.Name = ? `
+		} else {
+			list = nil
+		}
+	} else if linkID != nil {
+		selectQuery += `WHERE Links.ID = ? `
 	}
 
-	selectQuery += `GROUP BY Links.ID`
+	selectQuery += `
+	GROUP BY Links.ID
+	ORDER BY Done DESC, Links.LastModified DESC;
+	`
 
 	var rows *sql.Rows
-	if listID != nil {
-		rows, err = c.db.Query(selectQuery, *listID)
+	if list != nil {
+		if list.ID != nil {
+			rows, err = c.DB.Query(selectQuery, *list.ID)
+		} else if list.Name != nil {
+			rows, err = c.DB.Query(selectQuery, *list.Name)
+		}
+	} else if linkID != nil {
+		rows, err = c.DB.Query(selectQuery, *linkID)
 	} else {
-		rows, err = c.db.Query(selectQuery)
+		rows, err = c.DB.Query(selectQuery)
 	}
 
 	if err != nil {
@@ -140,7 +163,7 @@ func (c *Cache) getLinks(listID *string) ([]Link, error) {
 	return links, nil
 }
 
-func (c *Cache) getLists() ([]List, error) {
+func (c *Cache) getLists(list *List) ([]List, error) {
 	err := c.init()
 	if err != nil {
 		return nil, err
@@ -148,16 +171,28 @@ func (c *Cache) getLists() ([]List, error) {
 
 	selectQuery := `
   SELECT Lists.Name, Lists.Note, Lists.Created, Lists.LastModified, Lists.RecordURL, Lists.ID,
-      COUNT(Links.ID) AS total_links,
-      SUM(CASE WHEN Links.Done THEN 1 ELSE 0 END) AS done_links
+      SUM(CASE WHEN Links.Done THEN 1 ELSE 0 END) AS done_links,
+      GROUP_CONCAT(DISTINCT Links.ID, ',') AS link_ids,
+      GROUP_CONCAT(Links.Name, '\n') AS link_names
   FROM
       Lists
   LEFT JOIN
       Links ON Links.ListIDs LIKE '%' || Lists.ID || '%'
-  GROUP BY
-      Lists.ID;
   `
-	rows, err := c.db.Query(selectQuery)
+	if list != nil {
+		if list.ID != nil {
+			selectQuery += `WHERE Lists.ID = ? `
+		} else if list.Name != nil {
+			selectQuery += `WHERE Lists.Name = ? `
+		} else {
+			list = nil
+		}
+	}
+	selectQuery += `
+	GROUP BY Lists.ID
+	ORDER BY Lists.LastModified DESC;
+	`
+	rows, err := c.DB.Query(selectQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -166,19 +201,26 @@ func (c *Cache) getLists() ([]List, error) {
 	var lists []List
 	for rows.Next() {
 		var list List
-		var totalLinks, doneLinks int
-		err = rows.Scan(&list.Name, &list.Note, &list.Created, &list.LastModified, &list.RecordURL, &list.ID, &totalLinks, &doneLinks)
+		var linkIDs string
+		var linkNames string
+		err = rows.Scan(&list.Name, &list.Note, &list.Created, &list.LastModified, &list.RecordURL, &list.ID, &list.LinksDone, &linkIDs, &linkNames)
 		if err != nil {
 			return nil, err
 		}
-		switch doneLinks {
-		case totalLinks:
-			list.Status = "Done"
-		case 0:
-			list.Status = "To do"
-		default:
-			list.Status = "In progress"
+		if linkIDs != "" {
+			list.LinkIDs = strings.Split(linkIDs, ",")
 		}
+		if linkNames != "" {
+			list.LinkNames = strings.Split(linkNames, "\n")
+		}
+		status := "In progress"
+		switch *list.LinksDone {
+		case len(list.LinkIDs):
+			status = "Done"
+		case 0:
+			status = "To do"
+		}
+		list.Status = &status
 		lists = append(lists, list)
 	}
 	return lists, nil
@@ -198,15 +240,19 @@ func (c *Cache) saveLinks(links []Link) error {
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 	for _, link := range links {
-		tags := strings.Join(link.Tags, ",")
-		listIDs := strings.Join(link.ListIDs, ",")
-		_, err = c.db.Exec(insertQuery, link.Name, link.Note, link.URL, link.Category, tags, link.Created, link.LastModified, link.RecordURL, link.ID, link.Done, listIDs)
+		var tags, listIDs string
+		if link.Tags != nil {
+			tags = strings.Join(link.Tags, ",")
+		}
+		if link.ListIDs != nil {
+			listIDs = strings.Join(link.ListIDs, ",")
+		}
+		_, err = c.DB.Exec(insertQuery, link.Name, link.Note, link.URL, link.Category, tags, link.Created, link.LastModified, link.RecordURL, link.ID, link.Done, listIDs)
 		if err != nil {
 			return err
 		}
 	}
-
-	return c.setData("CachedAt", time.Now().Format(time.RFC3339))
+	return nil
 }
 
 func (c *Cache) saveLists(lists []List) error {
@@ -221,13 +267,12 @@ func (c *Cache) saveLists(lists []List) error {
 	) VALUES (?, ?, ?, ?, ?, ?)
 	`
 	for _, list := range lists {
-		_, err = c.db.Exec(insertQuery, list.Name, list.Note, list.Created, list.LastModified, list.RecordURL, list.ID)
+		_, err = c.DB.Exec(insertQuery, list.Name, list.Note, list.Created, list.LastModified, list.RecordURL, list.ID)
 		if err != nil {
 			return err
 		}
 	}
-
-	return c.setData("CachedAt", time.Now().Format(time.RFC3339))
+	return nil
 }
 
 // Delete records from the database whose IDs are not in the list of IDs
@@ -244,7 +289,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	}
 
 	existingIDsQuery := `SELECT ID FROM ` + table
-	rows, err := c.db.Query(existingIDsQuery)
+	rows, err := c.DB.Query(existingIDsQuery)
 	if err != nil {
 		return err
 	}
@@ -277,7 +322,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	for i, id := range idsToDelete {
 		args[i] = id
 	}
-	_, err = c.db.Exec(deleteQuery, args...)
+	_, err = c.DB.Exec(deleteQuery, args...)
 	if err != nil {
 		return err
 	}
@@ -285,15 +330,10 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 }
 
 func (c *Cache) setData(key string, value string) error {
-	err := c.init()
-	if err != nil {
-		return err
-	}
-
 	insertQuery := `
   INSERT OR REPLACE INTO Metadata (Key, Value) VALUES (?, ?)
   `
-	_, err = c.db.Exec(insertQuery, key, value)
+	_, err := c.DB.Exec(insertQuery, key, value)
 	if err != nil {
 		return err
 	}
@@ -302,16 +342,11 @@ func (c *Cache) setData(key string, value string) error {
 }
 
 func (c *Cache) getData(key string) (*string, error) {
-	err := c.init()
-	if err != nil {
-		return nil, err
-	}
-
 	selectQuery := `
   SELECT Value FROM Metadata WHERE Key = ?
   `
 	var value string
-	err = c.db.QueryRow(selectQuery, key).Scan(&value)
+	err := c.DB.QueryRow(selectQuery, key).Scan(&value)
 	if err != nil {
 		return nil, err
 	}
@@ -320,17 +355,12 @@ func (c *Cache) getData(key string) (*string, error) {
 }
 
 func (c *Cache) clearCache() error {
-	err := c.init()
-	if err != nil {
-		return err
-	}
-
 	deleteQuery := `
   DELETE FROM Metadata;
   DELETE FROM Links;
   DELETE FROM Lists;
   `
-	_, err = c.db.Exec(deleteQuery)
+	_, err := c.DB.Exec(deleteQuery)
 	if err != nil {
 		return err
 	}

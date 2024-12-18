@@ -12,7 +12,7 @@ The workflow supports adding, editing, searching, and filtering records.
 ## To-Do
 
 - Rewrite the workflow in Go
-    - [x] Authentication and oauth flow (tested)
+    - [x] Authentication and OAuth flow (tested)
         1. Start the HTTP server in a goroutine: This server will handle the OAuth flow and listen for the callback from the OAuth provider.
         2. Use channels for communication: Create channels to pass the access token and any errors between the goroutines.
         3. Request the OAuth authorization: In the main goroutine, initiate the OAuth authorization request and wait for the response via the channel.
@@ -23,8 +23,9 @@ The workflow supports adding, editing, searching, and filtering records.
         - Use the field `Last Modified` to fetch only the updated records
     - [x] Data caching with sqlite (tested)
         - Keep the access token and last fetched time in the cache
-    - [>] Adding, editing, deleting records with Airtable API
-    - [ ] User interface: adding, editing, searching, filtering
+    - [x] Adding, editing, deleting records with Airtable API (tested)
+    - [>] User interface: adding, editing, searching, filtering
+        - Think over the interaction logic in `editLink`
 
 ## References
 

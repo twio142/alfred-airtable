@@ -12,11 +12,11 @@ import (
 // Interact with the Airtable API
 
 type Airtable struct {
-	BaseURL string
-	BaseID  string
-	Auth    *Auth
-	DBPath  string
-	Cache   *Cache
+	BaseURL      string
+	BaseID       string
+	Auth         *Auth
+	DBPath       string
+	Cache        *Cache
 }
 
 type Record struct {
@@ -31,7 +31,7 @@ type Response struct {
 }
 
 func (a *Airtable) init() error {
-	a.Cache = &Cache{file: a.DBPath}
+	a.Cache = &Cache{File: a.DBPath}
 	err := a.Cache.init()
 	if err != nil {
 		return err

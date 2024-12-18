@@ -107,7 +107,7 @@ const lookIntoList = async (listId) => {
         subtitle,
         arg: `[${l.Name}](${url})`,
         variables: { url, id: l.id, rUrl, tableId: tables.Links.id },
-        category: 'file:skipcheck',
+        type: 'file:skipcheck',
         action: { text: `[${l.Name}](${url})` },
         quicklookurl: url,
         text: { largetype, copy: url },

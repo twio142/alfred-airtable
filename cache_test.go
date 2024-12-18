@@ -3,37 +3,46 @@ package main
 import (
 	"testing"
 	"time"
+	"log"
 )
 
 func TestInit(t *testing.T) {
-	cache := &Cache{file: "cache_test.db"}
+	cache := &Cache{File: "cache_test.db"}
 	err := cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
+	log.Println(cache.LastCachedAt)
 }
 
 func TestGetLinks(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	err := cache.init()
+	if err != nil {
+		t.Errorf("init() error = %v", err)
+	}
 
+	now := time.Now()
 	link := Link{
-		Name:         "Test Link",
-		Note:         "Test Note",
-		URL:          "http://example.com",
-		Category:     "Test Category",
+		Name:         stringPtr("Test Link"),
+		Note:         stringPtr("Test Note"),
+		URL:          stringPtr("http://example.com"),
+		Category:     stringPtr("Test Category"),
 		Tags:         []string{"Test Tag"},
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test Link ID",
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test Link ID"),
 		Done:         false,
 		ListIDs:      []string{"Test List ID"},
 	}
 
-	cache.saveLinks([]Link{link})
+	err = cache.saveLinks([]Link{link})
+	if err != nil {
+		t.Errorf("saveLinks() error = %v", err)
+	}
 
-	links, err := cache.getLinks(nil)
+	links, err := cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -42,27 +51,31 @@ func TestGetLinks(t *testing.T) {
 		t.Errorf("getLinks() returned %d links, expected 1", len(links))
 	}
 
-	if links[0].Name != "Test Link" {
-		t.Errorf("getLinks() returned link with name %s, expected 'Test Link'", links[0].Name)
+	if *links[0].Name != "Test Link" {
+		t.Errorf("getLinks() returned link with name %s, expected 'Test Link'", *links[0].Name)
 	}
 }
 
 func TestGetLists(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
+	now := time.Now()
 	list := List{
-		Name:         "Test List",
-		Note:         "Test Note",
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test List ID",
+		Name:         stringPtr("Test List"),
+		Note:         stringPtr("Test Note"),
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test List ID"),
 	}
 
-	cache.saveLists([]List{list})
+	err := cache.saveLists([]List{list})
+	if err != nil {
+		t.Errorf("saveLists() error = %v", err)
+	}
 
-	lists, err := cache.getLists()
+	lists, err := cache.getLists(nil)
 	if err != nil {
 		t.Errorf("getLists() error = %v", err)
 	}
@@ -71,25 +84,26 @@ func TestGetLists(t *testing.T) {
 		t.Errorf("getLists() returned %d lists, expected 1", len(lists))
 	}
 
-	if lists[0].Name != "Test List" {
-		t.Errorf("getLists() returned list with name %s, expected 'Test List'", lists[0].Name)
+	if *lists[0].Name != "Test List" {
+		t.Errorf("getLists() returned list with name %s, expected 'Test List'", *lists[0].Name)
 	}
 }
 
 func TestSaveLinks(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
+	now := time.Now()
 	link := Link{
-		Name:         "Test Link",
-		Note:         "Test Note",
-		URL:          "http://example.com",
-		Category:     "Test Category",
+		Name:         stringPtr("Test Link"),
+		Note:         stringPtr("Test Note"),
+		URL:          stringPtr("http://example.com"),
+		Category:     stringPtr("Test Category"),
 		Tags:         []string{"Test Tag"},
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test Link ID",
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test Link ID"),
 		Done:         false,
 		ListIDs:      []string{"Test List ID"},
 	}
@@ -99,7 +113,7 @@ func TestSaveLinks(t *testing.T) {
 		t.Errorf("saveLinks() error = %v", err)
 	}
 
-	links, err := cache.getLinks(nil)
+	links, err := cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -108,22 +122,23 @@ func TestSaveLinks(t *testing.T) {
 		t.Errorf("getLinks() returned %d links, expected 1", len(links))
 	}
 
-	if links[0].Name != "Test Link" {
-		t.Errorf("getLinks() returned link with name %s, expected 'Test Link'", links[0].Name)
+	if *links[0].Name != "Test Link" {
+		t.Errorf("getLinks() returned link with name %s, expected 'Test Link'", *links[0].Name)
 	}
 }
 
 func TestSaveLists(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
+	now := time.Now()
 	list := List{
-		Name:         "Test List",
-		Note:         "Test Note",
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test List ID",
+		Name:         stringPtr("Test List"),
+		Note:         stringPtr("Test Note"),
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test List ID"),
 	}
 
 	err := cache.saveLists([]List{list})
@@ -131,7 +146,7 @@ func TestSaveLists(t *testing.T) {
 		t.Errorf("saveLists() error = %v", err)
 	}
 
-	lists, err := cache.getLists()
+	lists, err := cache.getLists(nil)
 	if err != nil {
 		t.Errorf("getLists() error = %v", err)
 	}
@@ -140,32 +155,36 @@ func TestSaveLists(t *testing.T) {
 		t.Errorf("getLists() returned %d lists, expected 1", len(lists))
 	}
 
-	if lists[0].Name != "Test List" {
-		t.Errorf("getLists() returned list with name %s, expected 'Test List'", lists[0].Name)
+	if *lists[0].Name != "Test List" {
+		t.Errorf("getLists() returned list with name %s, expected 'Test List'", *lists[0].Name)
 	}
 }
 
 func TestClearDeletedRecords(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
+	now := time.Now()
 	link := Link{
-		Name:         "Test Link",
-		Note:         "Test Note",
-		URL:          "http://example.com",
-		Category:     "Test Category",
+		Name:         stringPtr("Test Link"),
+		Note:         stringPtr("Test Note"),
+		URL:          stringPtr("http://example.com"),
+		Category:     stringPtr("Test Category"),
 		Tags:         []string{"Test Tag"},
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test Link ID",
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test Link ID"),
 		Done:         false,
 		ListIDs:      []string{"Test List ID"},
 	}
 
-	cache.saveLinks([]Link{link})
+	err := cache.saveLinks([]Link{link})
+	if err != nil {
+		t.Errorf("saveLinks() error = %v", err)
+	}
 
-	links, err := cache.getLinks(nil)
+	links, err := cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -179,7 +198,7 @@ func TestClearDeletedRecords(t *testing.T) {
 		t.Errorf("clearDeletedRecords() error = %v", err)
 	}
 
-	links, err = cache.getLinks(nil)
+	links, err = cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -193,7 +212,7 @@ func TestClearDeletedRecords(t *testing.T) {
 		t.Errorf("clearDeletedRecords() error = %v", err)
 	}
 
-	links, err = cache.getLinks(nil)
+	links, err = cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -204,8 +223,8 @@ func TestClearDeletedRecords(t *testing.T) {
 }
 
 func TestSetData(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
 	err := cache.setData("TestKey", "TestValue")
 	if err != nil {
@@ -223,10 +242,13 @@ func TestSetData(t *testing.T) {
 }
 
 func TestGetData(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
-	cache.setData("TestKey", "TestValue")
+	err := cache.setData("TestKey", "TestValue")
+	if err != nil {
+		t.Errorf("setData() error = %v", err)
+	}
 
 	value, err := cache.getData("TestKey")
 	if err != nil {
@@ -239,31 +261,35 @@ func TestGetData(t *testing.T) {
 }
 
 func TestClearCache(t *testing.T) {
-	cache := &Cache{file: ":memory:"}
-	cache.init()
+	cache := &Cache{File: ":memory:"}
+	_ = cache.init()
 
+	now := time.Now()
 	link := Link{
-		Name:         "Test Link",
-		Note:         "Test Note",
-		URL:          "http://example.com",
-		Category:     "Test Category",
+		Name:         stringPtr("Test Link"),
+		Note:         stringPtr("Test Note"),
+		URL:          stringPtr("http://example.com"),
+		Category:     stringPtr("Test Category"),
 		Tags:         []string{"Test Tag"},
-		Created:      time.Now(),
-		LastModified: time.Now(),
-		RecordURL:    "http://example.com/record",
-		ID:           "Test Link ID",
+		Created:      &now,
+		LastModified: &now,
+		RecordURL:    stringPtr("http://example.com/record"),
+		ID:           stringPtr("Test Link ID"),
 		Done:         false,
 		ListIDs:      []string{"Test List ID"},
 	}
 
-	cache.saveLinks([]Link{link})
+	err := cache.saveLinks([]Link{link})
+	if err != nil {
+		t.Errorf("saveLinks() error = %v", err)
+	}
 
-	err := cache.clearCache()
+	err = cache.clearCache()
 	if err != nil {
 		t.Errorf("clearCache() error = %v", err)
 	}
 
-	links, err := cache.getLinks(nil)
+	links, err := cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
