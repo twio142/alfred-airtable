@@ -123,7 +123,8 @@ func (a *Airtable) createLink(link *Link) error {
 		},
 	}
 	records := []*Record{&record}
-	return a.createRecords("Links", records)
+	_, err := a.createRecords("Links", records)
+	return err
 }
 
 func (a *Airtable) createList(list *List, links *[]Link) error {
@@ -135,10 +136,11 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 	}
 	// TODO: Check if list already exists
 	listRecords := []*Record{&listRecord}
-	err := a.createRecords("Lists", listRecords)
+	listRecords, err := a.createRecords("Lists", listRecords)
 	if err != nil {
 		return err
 	}
+	list.ID = *listRecords[0].ID
 
 	linkRecords := []*Record{}
 	for _, link := range *links {
@@ -155,7 +157,8 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 		}
 		linkRecords = append(linkRecords, linkRecord)
 	}
-	return a.createRecords("Links", linkRecords)
+	_, err = a.createRecords("Links", linkRecords)
+	return err
 }
 
 func (a *Airtable) updateLink(link *Link) error {
@@ -172,7 +175,8 @@ func (a *Airtable) updateLink(link *Link) error {
 		},
 	}
 	records := []*Record{&record}
-	return a.updateRecords("Links", records)
+	_, err := a.updateRecords("Links", records)
+	return err
 }
 
 func (a *Airtable) updateList(list *List) error {
@@ -185,7 +189,8 @@ func (a *Airtable) updateList(list *List) error {
 		},
 	}
 	records := []*Record{&record}
-	return a.updateRecords("Lists", records)
+	_, err := a.updateRecords("Lists", records)
+	return err
 }
 
 func (a *Airtable) deleteLink(link *Link) error {

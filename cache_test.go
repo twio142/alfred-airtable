@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+func TestInit(t *testing.T) {
+	cache := &Cache{file: "cache_test.db"}
+	err := cache.init()
+	if err != nil {
+		t.Errorf("init() error = %v", err)
+	}
+}
+
 func TestGetLinks(t *testing.T) {
 	cache := &Cache{file: ":memory:"}
 	cache.init()
@@ -157,11 +165,6 @@ func TestClearDeletedRecords(t *testing.T) {
 
 	cache.saveLinks([]Link{link})
 
-	err := cache.clearDeletedRecords("Links", []string{"Test Link ID"})
-	if err != nil {
-		t.Errorf("clearDeletedRecords() error = %v", err)
-	}
-
 	links, err := cache.getLinks(nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
@@ -171,7 +174,21 @@ func TestClearDeletedRecords(t *testing.T) {
 		t.Errorf("getLinks() returned %d links, expected 1", len(links))
 	}
 
-	err = cache.clearDeletedRecords("Links", []string{})
+	err = cache.clearDeletedRecords("Links", []string{"Test Link ID"})
+	if err != nil {
+		t.Errorf("clearDeletedRecords() error = %v", err)
+	}
+
+	links, err = cache.getLinks(nil)
+	if err != nil {
+		t.Errorf("getLinks() error = %v", err)
+	}
+
+	if len(links) != 1 {
+		t.Errorf("getLinks() returned %d links, expected 1", len(links))
+	}
+
+	err = cache.clearDeletedRecords("Links", []string{"Test Link ID 2"})
 	if err != nil {
 		t.Errorf("clearDeletedRecords() error = %v", err)
 	}

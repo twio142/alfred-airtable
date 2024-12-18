@@ -57,31 +57,31 @@ func (c *Cache) init() error {
 
 	createTableQuery := `
   CREATE TABLE IF NOT EXISTS Metadata (
-      Key TEXT PRIMARY KEY,
-      Value TEXT,
+	  Key TEXT PRIMARY KEY,
+	  Value TEXT
   );
 
   CREATE TABLE IF NOT EXISTS Links (
-      Name TEXT,
-      Note TEXT,
-      URL TEXT,
-      Category TEXT,
-      Tags TEXT,
-      Created DATETIME,
-      LastModified DATETIME,
-      RecordURL TEXT,
-      ID TEXT PRIMARY KEY,
-      Done BOOLEAN,
-      ListIDs TEXT
+	  Name TEXT,
+	  Note TEXT,
+	  URL TEXT,
+	  Category TEXT,
+	  Tags TEXT,
+	  Created DATETIME,
+	  LastModified DATETIME,
+	  RecordURL TEXT,
+	  ID TEXT PRIMARY KEY,
+	  Done BOOLEAN,
+	  ListIDs TEXT
   );
 
   CREATE TABLE IF NOT EXISTS Lists (
-      Name TEXT,
-      Note TEXT,
-      Created DATETIME,
-      LastModified DATETIME,
-      RecordURL TEXT,
-      ID TEXT PRIMARY KEY
+	  Name TEXT,
+	  Note TEXT,
+	  Created DATETIME,
+	  LastModified DATETIME,
+	  RecordURL TEXT,
+	  ID TEXT PRIMARY KEY
   );
   `
 	_, err = db.Exec(createTableQuery)
@@ -100,8 +100,8 @@ func (c *Cache) getLinks(listID *string) ([]Link, error) {
 	}
 
 	selectQuery := `
-  SELECT Name, Note, URL, Category, Tags, Created, LastModified, RecordURL, ID, Done, ListIDs,
-      GROUP_CONCAT(Lists.Name, '\n') AS ListNames
+  SELECT Links.Name, Links.Note, URL, Category, Tags, Links.Created, Links.LastModified, Links.RecordURL, Links.ID, Done, ListIDs,
+      IFNULL(GROUP_CONCAT(Lists.Name, '\n'), '') AS ListNames
   FROM Links
   LEFT JOIN Lists ON Links.ListIDs LIKE '%' || Lists.ID || '%'
   `
@@ -147,7 +147,7 @@ func (c *Cache) getLists() ([]List, error) {
 	}
 
 	selectQuery := `
-  SELECT Name, Note, Created, LastModified, RecordURL, ID
+  SELECT Lists.Name, Lists.Note, Lists.Created, Lists.LastModified, Lists.RecordURL, Lists.ID,
       COUNT(Links.ID) AS total_links,
       SUM(CASE WHEN Links.Done THEN 1 ELSE 0 END) AS done_links
   FROM
@@ -206,9 +206,7 @@ func (c *Cache) saveLinks(links []Link) error {
 		}
 	}
 
-	c.setData("CachedAt", time.Now().Format(time.RFC3339))
-
-	return nil
+	return c.setData("CachedAt", time.Now().Format(time.RFC3339))
 }
 
 func (c *Cache) saveLists(lists []List) error {
@@ -229,9 +227,7 @@ func (c *Cache) saveLists(lists []List) error {
 		}
 	}
 
-	c.setData("CachedAt", time.Now().Format(time.RFC3339))
-
-	return nil
+	return c.setData("CachedAt", time.Now().Format(time.RFC3339))
 }
 
 // Delete records from the database whose IDs are not in the list of IDs
@@ -314,13 +310,13 @@ func (c *Cache) getData(key string) (*string, error) {
 	selectQuery := `
   SELECT Value FROM Metadata WHERE Key = ?
   `
-	var value *string
-	err = c.db.QueryRow(selectQuery, key).Scan(value)
+	var value string
+	err = c.db.QueryRow(selectQuery, key).Scan(&value)
 	if err != nil {
 		return nil, err
 	}
 
-	return value, nil
+	return &value, nil
 }
 
 func (c *Cache) clearCache() error {
@@ -330,9 +326,9 @@ func (c *Cache) clearCache() error {
 	}
 
 	deleteQuery := `
-  DELETE FROM Metadata
-  DELETE FROM Links
-  DELETE FROM Lists
+  DELETE FROM Metadata;
+  DELETE FROM Links;
+  DELETE FROM Lists;
   `
 	_, err = c.db.Exec(deleteQuery)
 	if err != nil {

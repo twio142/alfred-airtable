@@ -2,7 +2,7 @@ package main
 
 import (
 	"testing"
-	"time"
+	// "time"
 )
 
 func TestCacheLinks(t *testing.T) {
