@@ -1,9 +1,9 @@
 package main
 
 import (
+	"log"
 	"testing"
 	"time"
-	"log"
 )
 
 func TestInit(t *testing.T) {
@@ -12,7 +12,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	log.Println(cache.LastCachedAt)
+	log.Println(cache.LastSyncedAt)
 }
 
 func TestGetLinks(t *testing.T) {

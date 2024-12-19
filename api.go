@@ -30,13 +30,16 @@ type Response struct {
 	Offset  *string  `json:"offset,omitempty"`
 }
 
-func (a *Airtable) init() error {
+func (a *Airtable) init(skipAuth ...bool) error {
 	a.Cache = &Cache{File: a.DBPath}
-	err := a.Cache.init()
-	if err != nil {
+	if err := a.Cache.init(); err != nil {
 		return err
 	}
-	return a.getAuth()
+	if len(skipAuth) > 0 && skipAuth[0] {
+	} else if err := a.getAuth(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Airtable) fetchRecords(tableName string, params map[string]interface{}) ([]Record, error) {
@@ -149,7 +152,7 @@ func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 	return &tags, &categories, nil
 }
 
-func (a *Airtable) createRecords(tableName string, records []*Record) error {
+func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	client := &http.Client{}
 
@@ -183,15 +186,15 @@ func (a *Airtable) createRecords(tableName string, records []*Record) error {
 		return err
 	}
 
-	records = make([]*Record, len(response.Records))
+	*records = make([]*Record, len(response.Records))
 	for i, record := range response.Records {
-		records[i] = &record
+		(*records)[i] = &record
 	}
 	return nil
 }
 
-func (a *Airtable) updateRecords(tableName string, records []*Record) error {
-	for _, record := range records {
+func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
+	for _, record := range *records {
 		if record.ID == nil {
 			return fmt.Errorf("record ID is required for update")
 		}
@@ -230,17 +233,17 @@ func (a *Airtable) updateRecords(tableName string, records []*Record) error {
 		return err
 	}
 
-	records = make([]*Record, len(response.Records))
+	*records = make([]*Record, len(response.Records))
 	for i, record := range response.Records {
-		records[i] = &record
+		(*records)[i] = &record
 	}
 	return nil
 }
 
-func (a *Airtable) deleteRecords(tableName string, records []*Record) error {
+func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	searchParams := []string{}
-	for _, record := range records {
+	for _, record := range *records {
 		if record.ID == nil {
 			return fmt.Errorf("record ID is required for update")
 		}

@@ -72,18 +72,15 @@ func TestCreateRecords(t *testing.T) {
 			"Name": "Test Link",
 			"Note": "Test Note",
 			"URL":  "http://example.com",
-			// "Category": "",
-			"Tags":  []string{},
-			"Done":  false,
-			"Lists": []string{},
 		},
 	}
+	records := []*Record{&record}
 
-	err = airtable.createRecords("Links", []*Record{&record})
+	err = airtable.createRecords("Links", &records)
 	if err != nil {
 		t.Errorf("createRecords() error = %v", err)
 	}
-	log.Println("test", record.ID)
+	log.Println("test", &records[0].ID)
 }
 
 func TestUpdateRecords(t *testing.T) {
@@ -97,34 +94,34 @@ func TestUpdateRecords(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	record := Record{
-		Fields: &map[string]interface{}{
-			"Name": "Test Link",
-			"Note": "Test Note",
-			"URL":  "http://example.com",
-			// "Category": "",
-			"Tags":  []string{},
-			"Done":  false,
-			"Lists": []string{},
-		},
-	}
-
-	err = airtable.createRecords("Links", []*Record{&record})
+	links, err := airtable.fetchLinks()
 	if err != nil {
-		t.Errorf("createRecords() error = %v", err)
+		t.Errorf("getLinks() error = %v", err)
 	}
 
-	record.Fields = &map[string]interface{}{}
+	link := Link{}
+	for _, l := range links {
+		if *l.Name == "Test Link" {
+			link = l
+			break
+		}
+	}
+	if link.ID == nil {
+		t.Errorf("link not found")
+	}
+
+	record := link.toRecord()
 	(*record.Fields)["Name"] = "Updated Link"
 	(*record.Fields)["Note"] = "Updated Note"
+	records := []*Record{&record}
 
 	log.Println("test", *record.ID, record.Fields)
 
-	err = airtable.updateRecords("Links", []*Record{&record})
+	err = airtable.updateRecords("Links", &records)
 	if err != nil {
 		t.Errorf("updateRecords() error = %v", err)
 	}
-	log.Println("test", (*record.Fields)["Last Modified"])
+	log.Println("test", (*records[0].Fields)["Last Modified"])
 }
 
 func TestDeleteRecords(t *testing.T) {
@@ -138,11 +135,26 @@ func TestDeleteRecords(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	records := []*Record{
-		{ID: stringPtr("recFDMPdTXU6jkLJu")},
+	links, err := airtable.fetchLinks()
+	if err != nil {
+		t.Errorf("getLinks() error = %v", err)
 	}
 
-	err = airtable.deleteRecords("Links", records)
+	link := Link{}
+	for _, l := range links {
+		if *l.Name == "Updated Link" {
+			link = l
+			break
+		}
+	}
+	if link.ID == nil {
+		t.Errorf("link not found")
+	}
+
+	record := link.toRecord()
+	records := []*Record{&record}
+
+	err = airtable.deleteRecords("Links", &records)
 	if err != nil {
 		t.Errorf("deleteRecords() error = %v", err)
 	}

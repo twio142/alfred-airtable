@@ -24,7 +24,7 @@ The workflow supports adding, editing, searching, and filtering records.
     - [x] Data caching with sqlite (tested)
         - Keep the access token and last fetched time in the cache
     - [x] Adding, editing, deleting records with Airtable API (tested)
-    - [>] User interface: adding, editing, searching, filtering
+    - [x] User interface: adding, editing, searching, filtering (partially tested)
         - Think over the interaction logic in `editLink`
 
 ## References

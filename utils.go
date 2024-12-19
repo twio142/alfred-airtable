@@ -14,13 +14,19 @@ import (
 	"github.com/mozillazg/go-pinyin"
 )
 
-func notify(message string) {
+func notify(subtitle string, m ...string) {
+	message := ""
+	if len(m) > 0 {
+		message = m[0]
+	}
 	_ = exec.Command(
 		"terminal-notifier",
 		"-title",
 		"Airtable",
 		"-message",
 		message,
+		"-subtitle",
+		subtitle,
 		"-sender",
 		"com.runningwithcrayons.Alfred",
 		"-contentImage",
@@ -33,10 +39,17 @@ var pinyinConverter = pinyin.NewArgs()
 func toPinyin(s *string) string {
 	out := ""
 	for _, r := range *s {
-		if !unicode.Is(unicode.Han, r) {
-			out += string(pinyin.Pinyin(string(r), pinyinConverter)[0][0])
-		} else {
+		if unicode.Is(unicode.Han, r) {
+			c := pinyin.Pinyin(string(r), pinyinConverter)
+			if len(c) > 0 && len(c[0]) > 0 {
+				for _, p := range c[0] {
+					out += p + " "
+				}
+			}
+		} else if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			out += string(r)
+		} else {
+			out += " "
 		}
 	}
 	return out
@@ -155,6 +168,14 @@ func (r *Record) toList() *List {
 		RecordURL:    getStringField(fields, "Record URL"),
 	}
 	return &list
+}
+
+func copyMap(m map[string]string) map[string]string {
+	copy := make(map[string]string, len(m))
+	for k, v := range m {
+		copy[k] = v
+	}
+	return copy
 }
 
 func stringPtr(s string) *string {

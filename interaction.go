@@ -100,10 +100,11 @@ func (l *Link) format() Item {
 				},
 			},
 			"fn": {
-				Subtitle:  "Rebuild cache",
-				Arg:       "__CACHE__",
-				Icon:      &Icon{Path: stringPtr("media/reload.png")},
-				Variables: map[string]string{"mode": "cache"},
+				Subtitle: "Rebuild cache",
+				Icon:     &Icon{Path: stringPtr("media/reload.png")},
+				Variables: map[string]string{
+					"mode": "sync",
+				},
 			},
 		},
 	}
@@ -114,7 +115,7 @@ func (l *Link) format() Item {
 			Icon:     &Icon{Path: stringPtr("media/checked.png")},
 			Variables: map[string]string{
 				"ID":   *l.ID,
-				"mode": "complete",
+				"mode": "complete-link",
 			},
 		}
 	}
@@ -152,9 +153,8 @@ func (l *List) format() Item {
 				Subtitle: "Add link to list",
 				Icon:     &Icon{Path: stringPtr("media/add.png")},
 				Variables: map[string]string{
-					"mode":     "append",
-					"listID":   *l.ID,
-					"listName": *l.Name,
+					"mode":    "edit-link",
+					"listIDs": *l.ID,
 				},
 			},
 			"shift": {
@@ -169,7 +169,7 @@ func (l *List) format() Item {
 				Subtitle: "Delete list",
 				Icon:     &Icon{Path: stringPtr("media/delete.png")},
 				Variables: map[string]string{
-					"mode":   "delete-links",
+					"mode":   "delete-list-links",
 					"listID": *l.ID,
 				},
 			},
@@ -190,10 +190,9 @@ func (l *List) format() Item {
 			},
 			"fn": {
 				Subtitle: "Rebuild cache",
-				Arg:      "__CACHE__",
 				Icon:     &Icon{Path: stringPtr("media/reload.png")},
 				Variables: map[string]string{
-					"mode": "cache",
+					"mode": "sync",
 				},
 			},
 		},
@@ -668,7 +667,7 @@ func (a *Airtable) editLink(input string) {
 	wf.output()
 }
 
-func (a *Airtable) saveLink() {
+func (a *Airtable) saveLink() error {
 	link := Link{}
 	if os.Getenv("ID") != "" {
 		if links, _ := a.Cache.getLinks(nil, stringPtr(os.Getenv("ID"))); len(links) > 0 {
@@ -676,11 +675,17 @@ func (a *Airtable) saveLink() {
 		}
 	}
 
+	if os.Getenv("URL") != "" {
+		link.URL = stringPtr(os.Getenv("URL"))
+	}
+	if !testURL(*link.URL) {
+		return fmt.Errorf("invalid URL: %s", *link.URL)
+	}
 	if os.Getenv("title") != "" {
 		link.Name = stringPtr(os.Getenv("title"))
 	}
-	if os.Getenv("URL") != "" {
-		link.URL = stringPtr(os.Getenv("URL"))
+	if link.Name == nil || *link.Name == "" {
+		link.Name = link.URL
 	}
 	if os.Getenv("note") != "" {
 		if os.Getenv("note") == "__NONE__" {
@@ -728,17 +733,19 @@ func (a *Airtable) saveLink() {
 		// create a new link
 		go func() {
 			defer wg.Done()
-			if err := a.createLink(&link); err != nil {
-				errChan <- err
-			}
+			err := a.createLink(&link)
+			errChan <- err
 		}()
 	} else {
 		// update the link
 		go func() {
 			defer wg.Done()
-			if err := a.updateLink(&link); err != nil {
-				errChan <- err
-			}
+			err := a.updateLink(&link)
+			errChan <- err
 		}()
 	}
+
+	wg.Wait()
+	err := <-errChan
+	return err
 }

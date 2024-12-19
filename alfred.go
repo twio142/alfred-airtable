@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -23,6 +22,8 @@ type Mod struct {
 func (m *Mod) setVar(name string, value string) {
 	if m.Variables == nil {
 		m.Variables = make(map[string]string)
+	} else {
+		m.Variables = copyMap(m.Variables)
 	}
 	m.Variables[name] = value
 }
@@ -53,6 +54,8 @@ type Item struct {
 func (i *Item) setVar(name string, value string) {
 	if i.Variables == nil {
 		i.Variables = make(map[string]string)
+	} else {
+		i.Variables = copyMap(i.Variables)
 	}
 	i.Variables[name] = value
 }
@@ -92,6 +95,8 @@ func (w *Workflow) warnEmpty(s ...string) {
 func (w *Workflow) setVar(name string, value string) {
 	if w.Variables == nil {
 		w.Variables = make(map[string]string)
+	} else {
+		w.Variables = copyMap(w.Variables)
 	}
 	w.Variables[name] = value
 }
@@ -99,7 +104,7 @@ func (w *Workflow) setVar(name string, value string) {
 func (w *Workflow) output() {
 	jsonItems, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
-		log.Println("Error:", err)
+		fmt.Fprintln(os.Stderr, "Error:", err.Error())
 		return
 	}
 	fmt.Println(string(jsonItems))

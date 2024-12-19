@@ -15,7 +15,7 @@ import (
 
 func (a *Airtable) fetchLinks() ([]Link, error) {
 	params := map[string]interface{}{
-		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastCachedAt.Format(time.RFC3339)),
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "URL", "Category", "Tags", "Last Modified", "Record URL", "Done", "Lists"},
 	}
 	records, err := a.fetchRecords("Links", params)
@@ -31,7 +31,7 @@ func (a *Airtable) fetchLinks() ([]Link, error) {
 
 func (a *Airtable) fetchLists() ([]List, error) {
 	params := map[string]interface{}{
-		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastCachedAt.Format(time.RFC3339)),
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "Last Modified", "Record URL", "Links"},
 	}
 	records, err := a.fetchRecords("Lists", params)
@@ -60,7 +60,11 @@ func (a *Airtable) fetchAllIDs(table string) ([]string, error) {
 	return IDs, nil
 }
 
-func (a *Airtable) cacheData() error {
+func (a *Airtable) syncData(force ...bool) error {
+	forceSync := len(force) > 0 && force[0]
+	if !forceSync && time.Since(a.Cache.LastSyncedAt) < a.Cache.MaxAge {
+		return nil
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
@@ -203,8 +207,8 @@ func (a *Airtable) cacheData() error {
 		if categories := schema[1]; categories != nil {
 			_ = a.Cache.setData("Categories", *categories)
 		}
-		_ = a.Cache.setData("CachedAt", now.Format(time.RFC3339))
-		a.Cache.LastCachedAt = now
+		_ = a.Cache.setData("LastSyncedAt", now.Format(time.RFC3339))
+		a.Cache.LastSyncedAt = now
 	}
 
 	return nil
@@ -212,12 +216,13 @@ func (a *Airtable) cacheData() error {
 
 func (a *Airtable) createLink(link *Link) error {
 	record := link.toRecord()
-	err := a.createRecords("Links", []*Record{&record})
+	records := []*Record{&record}
+	err := a.createRecords("Links", &records)
 	if err != nil {
 		return err
 	}
-	link.ID = record.ID
-	link.Created = record.CreatedTime
+	link.ID = records[0].ID
+	link.Created = records[0].CreatedTime
 	return nil
 }
 
@@ -228,16 +233,20 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 			list.ID = lists[0].ID
 		} else {
 			listRecord := list.toRecord()
-			err := a.createRecords("Lists", []*Record{&listRecord})
+			listRecords := []*Record{&listRecord}
+			err := a.createRecords("Lists", &listRecords)
 			if err != nil {
 				return err
 			}
-			list.ID = listRecord.ID
+			list.ID = listRecords[0].ID
 		}
 	}
 
 	if links == nil || len(*links) == 0 {
 		return nil
+	}
+	if list.LinkIDs == nil {
+		list.LinkIDs = make([]string, len(*links))
 	}
 
 	linkRecords := make([]*Record, len(*links))
@@ -250,7 +259,7 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 		record := link.toRecord()
 		linkRecords[i] = &record
 	}
-	err := a.createRecords("Links", linkRecords)
+	err := a.createRecords("Links", &linkRecords)
 	if err != nil {
 		return err
 	}
@@ -265,11 +274,12 @@ func (a *Airtable) updateLink(link *Link) error {
 		return fmt.Errorf("Link ID is required")
 	}
 	record := link.toRecord()
-	err := a.updateRecords("Links", []*Record{&record})
+	records := []*Record{&record}
+	err := a.updateRecords("Links", &records)
 	if err != nil {
 		return err
 	}
-	*link = *record.toLink()
+	*link = *records[0].toLink()
 	return nil
 }
 
@@ -278,11 +288,12 @@ func (a *Airtable) updateList(list *List) error {
 		return fmt.Errorf("List ID is required")
 	}
 	record := list.toRecord()
-	err := a.updateRecords("Lists", []*Record{&record})
+	records := []*Record{&record}
+	err := a.updateRecords("Lists", &records)
 	if err != nil {
 		return err
 	}
-	*list = *record.toList()
+	*list = *records[0].toList()
 	return nil
 }
 
@@ -290,7 +301,7 @@ func (a *Airtable) deleteLink(link *Link) error {
 	if link.ID == nil {
 		return fmt.Errorf("Link ID is required")
 	}
-	return a.deleteRecords("Links", []*Record{{ID: link.ID}})
+	return a.deleteRecords("Links", &[]*Record{{ID: link.ID}})
 }
 
 func (a *Airtable) deleteList(list *List, deleteLinks bool) error {
@@ -298,19 +309,19 @@ func (a *Airtable) deleteList(list *List, deleteLinks bool) error {
 		return fmt.Errorf("List ID is required")
 	}
 	if deleteLinks && len(list.LinkIDs) > 0 {
-		records := []*Record{}
+		records := make([]*Record, len(list.LinkIDs))
 		for _, linkID := range list.LinkIDs {
 			record := Record{
 				ID: &linkID,
 			}
 			records = append(records, &record)
 		}
-		err := a.deleteRecords("Links", records)
+		err := a.deleteRecords("Links", &records)
 		if err != nil {
 			return err
 		}
 	}
-	err := a.deleteRecords("Lists", []*Record{{ID: list.ID}})
+	err := a.deleteRecords("Lists", &[]*Record{{ID: list.ID}})
 	if err != nil {
 		return err
 	}

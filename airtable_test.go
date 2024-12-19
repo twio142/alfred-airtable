@@ -40,7 +40,7 @@ func TestCacheLists(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	_ = airtable.Cache.setData("CachedAt", "2000-01-01T00:00:00Z")
+	_ = airtable.Cache.setData("LastSyncedAt", "2000-01-01T00:00:00Z")
 	_, err = airtable.fetchLists()
 	if err != nil {
 		t.Errorf("cacheLists() error = %v", err)
@@ -176,7 +176,7 @@ func TestDeleteLink(t *testing.T) {
 	}
 
 	_, _ = airtable.fetchLinks()
-	_ = airtable.Cache.setData("CachedAt", time.Now().Format(time.RFC3339))
+	_ = airtable.Cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
 	airtable.Cache.DB.Close()
 }
 
@@ -190,7 +190,7 @@ func TestDeleteList(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	airtable.Cache.LastCachedAt = time.Time{}
+	airtable.Cache.LastSyncedAt = time.Time{}
 
 	lists, _ := airtable.fetchLists()
 	var list *List
@@ -226,7 +226,7 @@ func TestDeleteList(t *testing.T) {
 	}()
 
 	wg.Wait()
-	_ = airtable.Cache.setData("CachedAt", time.Now().Format(time.RFC3339))
+	_ = airtable.Cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
 	airtable.Cache.DB.Close()
 }
 
@@ -240,12 +240,12 @@ func TestCacheData(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	log.Println(airtable.Cache.LastCachedAt)
-	err = airtable.cacheData()
+	log.Println(airtable.Cache.LastSyncedAt)
+	err = airtable.syncData(false)
 	if err != nil {
 		t.Errorf("cacheData() error = %v", err)
 	}
-	log.Println(airtable.Cache.LastCachedAt)
+	log.Println(airtable.Cache.LastSyncedAt)
 	airtable.Cache.DB.Close()
 }
 

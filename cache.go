@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -10,9 +11,9 @@ import (
 )
 
 type Metadata struct {
-	CachedAt   time.Time
-	Tags       []string
-	Categories []string
+	LastSyncedAt time.Time
+	Tags         []string
+	Categories   []string
 }
 
 type Link struct {
@@ -46,10 +47,19 @@ type List struct {
 type Cache struct {
 	File         string
 	DB           *sql.DB
-	LastCachedAt time.Time
+	LastSyncedAt time.Time
+	MaxAge       time.Duration
 }
 
 func (c *Cache) init() error {
+	c.MaxAge = 5 * time.Minute
+	if os.Getenv("MAX_AGE") != "" {
+		interval, err := time.ParseDuration(os.Getenv("MAX_AGE") + "m")
+		if err == nil && interval >= 0 {
+			c.MaxAge = interval
+		}
+	}
+
 	if c.DB == nil {
 		db, err := sql.Open("sqlite3", c.File)
 		if err != nil {
@@ -93,8 +103,8 @@ func (c *Cache) init() error {
 		c.DB = db
 	}
 
-	if str, _ := c.getData("CachedAt"); str != nil {
-		c.LastCachedAt, _ = time.Parse(time.RFC3339, *str)
+	if str, _ := c.getData("LastSyncedAt"); str != nil {
+		c.LastSyncedAt, _ = time.Parse(time.RFC3339, *str)
 	}
 	return nil
 }
@@ -155,9 +165,15 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 		if err != nil {
 			return nil, err
 		}
-		link.Tags = strings.Split(tags, ",")
-		link.ListIDs = strings.Split(listIDs, ",")
-		link.ListNames = strings.Split(listNames, "\n")
+		if tags != "" {
+			link.Tags = strings.Split(tags, ",")
+		}
+		if listIDs != "" {
+			link.ListIDs = strings.Split(listIDs, ",")
+		}
+		if listNames != "" {
+			link.ListNames = strings.Split(listNames, "\n")
+		}
 		links = append(links, link)
 	}
 	return links, nil
@@ -172,7 +188,7 @@ func (c *Cache) getLists(list *List) ([]List, error) {
 	selectQuery := `
   SELECT Lists.Name, Lists.Note, Lists.Created, Lists.LastModified, Lists.RecordURL, Lists.ID,
       SUM(CASE WHEN Links.Done THEN 1 ELSE 0 END) AS done_links,
-      GROUP_CONCAT(DISTINCT Links.ID, ',') AS link_ids,
+      GROUP_CONCAT(Links.ID, ',') AS link_ids,
       GROUP_CONCAT(Links.Name, '\n') AS link_names
   FROM
       Lists
