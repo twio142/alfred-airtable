@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"testing"
-
 	// "golang.org/x/oauth2"
 )
 
@@ -45,21 +45,14 @@ func TestFetchSchema(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	err = airtable.fetchSchema()
+	tags, categories, err := airtable.fetchSchema()
 	if err != nil {
 		t.Errorf("fetchSchema() error = %v", err)
 	}
+	_ = airtable.Cache.setData("Tags", strings.Join(*tags, ","))
+	_ = airtable.Cache.setData("Categories", strings.Join(*categories, ","))
 
-	tags, _ := airtable.Cache.getData("Tags")
-	if tags == nil || *tags == "" {
-		t.Errorf("fetchSchema() did not cache tags")
-	}
 	log.Println(tags)
-
-	categories, _ := airtable.Cache.getData("Categories")
-	if categories == nil || *categories == "" {
-		t.Errorf("fetchSchema() did not cache categories")
-	}
 	log.Println(categories)
 }
 
@@ -74,26 +67,23 @@ func TestCreateRecords(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	records := []*Record{
-		{
-			Fields: &map[string]interface{}{
-				"Name": "Test Link",
-				"Note": "Test Note",
-				"URL":  "http://example.com",
-				// "Category": "",
-				"Tags":  []string{},
-				"Done":  false,
-				"Lists": []string{},
-			},
+	record := Record{
+		Fields: &map[string]interface{}{
+			"Name": "Test Link",
+			"Note": "Test Note",
+			"URL":  "http://example.com",
+			// "Category": "",
+			"Tags":  []string{},
+			"Done":  false,
+			"Lists": []string{},
 		},
 	}
 
-	records, err = airtable.createRecords("Links", records)
+	err = airtable.createRecords("Links", []*Record{&record})
 	if err != nil {
 		t.Errorf("createRecords() error = %v", err)
 	}
-	record := records[0]
-	log.Println("test", *record.ID)
+	log.Println("test", record.ID)
 }
 
 func TestUpdateRecords(t *testing.T) {
@@ -107,36 +97,34 @@ func TestUpdateRecords(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	records := []*Record{
-		{
-			Fields: &map[string]interface{}{
-				"Name": "Test Link",
-				"Note": "Test Note",
-				"URL":  "http://example.com",
-				// "Category": "",
-				"Tags":  []string{},
-				"Done":  false,
-				"Lists": []string{},
-			},
+	record := Record{
+		Fields: &map[string]interface{}{
+			"Name": "Test Link",
+			"Note": "Test Note",
+			"URL":  "http://example.com",
+			// "Category": "",
+			"Tags":  []string{},
+			"Done":  false,
+			"Lists": []string{},
 		},
 	}
 
-	records, err = airtable.createRecords("Links", records)
+	err = airtable.createRecords("Links", []*Record{&record})
 	if err != nil {
 		t.Errorf("createRecords() error = %v", err)
 	}
 
-	record := records[0]
 	record.Fields = &map[string]interface{}{}
 	(*record.Fields)["Name"] = "Updated Link"
 	(*record.Fields)["Note"] = "Updated Note"
 
 	log.Println("test", *record.ID, record.Fields)
 
-	_, err = airtable.updateRecords("Links", records)
+	err = airtable.updateRecords("Links", []*Record{&record})
 	if err != nil {
 		t.Errorf("updateRecords() error = %v", err)
 	}
+	log.Println("test", (*record.Fields)["Last Modified"])
 }
 
 func TestDeleteRecords(t *testing.T) {
@@ -151,9 +139,7 @@ func TestDeleteRecords(t *testing.T) {
 	}
 
 	records := []*Record{
-		{
-			ID: stringPtr("recFDMPdTXU6jkLJu"),
-		},
+		{ID: stringPtr("recFDMPdTXU6jkLJu")},
 	}
 
 	err = airtable.deleteRecords("Links", records)

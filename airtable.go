@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -63,13 +64,14 @@ func (a *Airtable) cacheData() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 
 	errorChan := make(chan error, 1)
 	linksChan := make(chan []Link, 1)
 	listsChan := make(chan []List, 1)
 	linkIDsChan := make(chan []string, 1)
 	listIDsChan := make(chan []string, 1)
+	schemaChan := make(chan []*string, 1)
 
 	go func() {
 		defer wg.Done()
@@ -140,12 +142,37 @@ func (a *Airtable) cacheData() error {
 	}()
 
 	go func() {
+		defer wg.Done()
+		tags, categories, err := a.fetchSchema()
+		if err != nil {
+			select {
+			case errorChan <- err:
+			default:
+			}
+			cancel()
+			return
+		}
+		schema := []*string{nil, nil}
+		if tags != nil {
+			schema[0] = stringPtr(strings.Join(*tags, ","))
+		}
+		if categories != nil {
+			schema[1] = stringPtr(strings.Join(*categories, ","))
+		}
+		select {
+		case schemaChan <- schema:
+		case <-ctx.Done():
+		}
+	}()
+
+	go func() {
 		wg.Wait()
 		close(errorChan)
 		close(linksChan)
 		close(listsChan)
 		close(linkIDsChan)
 		close(listIDsChan)
+		close(schemaChan)
 	}()
 
 	select {
@@ -155,7 +182,9 @@ func (a *Airtable) cacheData() error {
 		lists := <-listsChan
 		linkIDs := <-linkIDsChan
 		listIDs := <-listIDsChan
+		schema := <-schemaChan
 
+		now := time.Now()
 		if err := a.Cache.clearDeletedRecords("Links", linkIDs); err != nil {
 			return err
 		}
@@ -168,70 +197,93 @@ func (a *Airtable) cacheData() error {
 		if err := a.Cache.saveLists(lists); err != nil {
 			return err
 		}
-		if err := a.Cache.setData("CachedAt", time.Now().Format(time.RFC3339)); err != nil {
-			return err
+		if tags := schema[0]; tags != nil {
+			_ = a.Cache.setData("Tags", *tags)
 		}
-		a.Cache.LastCachedAt = time.Now()
+		if categories := schema[1]; categories != nil {
+			_ = a.Cache.setData("Categories", *categories)
+		}
+		_ = a.Cache.setData("CachedAt", now.Format(time.RFC3339))
+		a.Cache.LastCachedAt = now
 	}
 
 	return nil
 }
 
-func (a *Airtable) createLink(link *Link) (*Link, error) {
-	records := []*Record{link.toRecord()}
-	records, err := a.createRecords("Links", records)
-	link.ID = records[0].ID
-	link.Created = records[0].CreatedTime
-	return link, err
+func (a *Airtable) createLink(link *Link) error {
+	record := link.toRecord()
+	err := a.createRecords("Links", []*Record{&record})
+	if err != nil {
+		return err
+	}
+	link.ID = record.ID
+	link.Created = record.CreatedTime
+	return nil
 }
 
-func (a *Airtable) createList(list *List, links *[]Link) (*List, error) {
+func (a *Airtable) createList(list *List, links *[]Link) error {
 	if list.ID == nil {
 		lists, _ := a.Cache.getLists(list)
 		if len(lists) > 0 {
 			list.ID = lists[0].ID
 		} else {
-			listRecords := []*Record{list.toRecord()}
-			listRecords, err := a.createRecords("Lists", listRecords)
+			listRecord := list.toRecord()
+			err := a.createRecords("Lists", []*Record{&listRecord})
 			if err != nil {
-				return nil, err
+				return err
 			}
-			list.ID = listRecords[0].ID
+			list.ID = listRecord.ID
 		}
 	}
 
-	linkRecords := []*Record{}
-	for _, link := range *links {
+	if links == nil || len(*links) == 0 {
+		return nil
+	}
+
+	linkRecords := make([]*Record, len(*links))
+	for i, link := range *links {
 		if link.ListIDs == nil {
 			link.ListIDs = []string{*list.ID}
 		} else {
 			link.ListIDs = append(link.ListIDs, *list.ID)
 		}
-		linkRecords = append(linkRecords, link.toRecord())
+		record := link.toRecord()
+		linkRecords[i] = &record
 	}
-	linkRecords, err := a.createRecords("Links", linkRecords)
+	err := a.createRecords("Links", linkRecords)
+	if err != nil {
+		return err
+	}
 	for _, linkRecord := range linkRecords {
 		list.LinkIDs = append(list.LinkIDs, *linkRecord.ID)
 	}
-	return list, err
+	return nil
 }
 
-func (a *Airtable) updateLink(link *Link) (*Link, error) {
+func (a *Airtable) updateLink(link *Link) error {
 	if link.ID == nil {
-		return nil, fmt.Errorf("Link ID is required")
+		return fmt.Errorf("Link ID is required")
 	}
-	records := []*Record{link.toRecord()}
-	records, err := a.updateRecords("Links", records)
-	return records[0].toLink(), err
+	record := link.toRecord()
+	err := a.updateRecords("Links", []*Record{&record})
+	if err != nil {
+		return err
+	}
+	*link = *record.toLink()
+	return nil
 }
 
-func (a *Airtable) updateList(list *List) (*List, error) {
+func (a *Airtable) updateList(list *List) error {
 	if list.ID == nil {
-		return nil, fmt.Errorf("List ID is required")
+		return fmt.Errorf("List ID is required")
 	}
-	records := []*Record{list.toRecord()}
-	records, err := a.updateRecords("Lists", records)
-	return records[0].toList(), err
+	record := list.toRecord()
+	err := a.updateRecords("Lists", []*Record{&record})
+	if err != nil {
+		return err
+	}
+	*list = *record.toList()
+	return nil
 }
 
 func (a *Airtable) deleteLink(link *Link) error {
@@ -284,10 +336,10 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 	}
 	text := strings.Join(lines, "\n")
 
-  lcDir := "link_copiers"
-  if _, err := os.Stat(lcDir); os.IsNotExist(err) {
-    _ = os.Mkdir(lcDir, 0755)
-  }
+	lcDir := "link_copiers"
+	if _, err := os.Stat(lcDir); os.IsNotExist(err) {
+		_ = os.Mkdir(lcDir, 0755)
+	}
 	outputFile := fmt.Sprintf("%s/%s.md", lcDir, name)
 	suffix := 1
 	for {
@@ -301,7 +353,8 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 }
 
 func (a *Airtable) linkCopierToList(file string) (*List, error) {
-	name := strings.TrimSuffix(file, ".md")
+	name := filepath.Base(file)
+	name = strings.TrimSuffix(name, ".md")
 	text, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -318,9 +371,10 @@ func (a *Airtable) linkCopierToList(file string) (*List, error) {
 			links = append(links, link)
 		}
 	}
-	list, err := a.createList(&List{Name: &name}, &links)
+	list := List{Name: &name}
+	err = a.createList(&list, &links)
 	if err != nil {
 		return nil, err
 	}
-	return list, nil
+	return &list, nil
 }

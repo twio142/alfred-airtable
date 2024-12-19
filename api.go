@@ -84,23 +84,23 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 	return response.Records, nil
 }
 
-func (a *Airtable) fetchSchema() error {
+func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.BaseID)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to fetch schema: %s", resp.Status)
+		return nil, nil, fmt.Errorf("failed to fetch schema: %s", resp.Status)
 	}
 
 	type MetaResponse struct {
@@ -119,7 +119,7 @@ func (a *Airtable) fetchSchema() error {
 
 	var response MetaResponse
 	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	tags := []string{}
@@ -146,13 +146,10 @@ func (a *Airtable) fetchSchema() error {
 		}
 	}
 
-	if err = a.Cache.setData("Tags", strings.Join(tags, ",")); err != nil {
-		return err
-	}
-	return a.Cache.setData("Categories", strings.Join(categories, ","))
+	return &tags, &categories, nil
 }
 
-func (a *Airtable) createRecords(tableName string, records []*Record) ([]*Record, error) {
+func (a *Airtable) createRecords(tableName string, records []*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	client := &http.Client{}
 
@@ -161,42 +158,42 @@ func (a *Airtable) createRecords(tableName string, records []*Record) ([]*Record
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	req, err := http.NewRequest("POST", u, strings.NewReader(string(jsonData)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to create records: %s", resp.Status)
+		return fmt.Errorf("failed to create records: %s", resp.Status)
 	}
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, err
+		return err
 	}
 
 	records = make([]*Record, len(response.Records))
 	for i, record := range response.Records {
 		records[i] = &record
 	}
-	return records, nil
+	return nil
 }
 
-func (a *Airtable) updateRecords(tableName string, records []*Record) ([]*Record, error) {
+func (a *Airtable) updateRecords(tableName string, records []*Record) error {
 	for _, record := range records {
 		if record.ID == nil {
-			return nil, fmt.Errorf("record ID is required for update")
+			return fmt.Errorf("record ID is required for update")
 		}
 		record.CreatedTime = nil
 	}
@@ -208,36 +205,36 @@ func (a *Airtable) updateRecords(tableName string, records []*Record) ([]*Record
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	req, err := http.NewRequest("PATCH", u, strings.NewReader(string(jsonData)))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to update records: %s", resp.Status)
+		return fmt.Errorf("failed to update records: %s", resp.Status)
 	}
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, err
+		return err
 	}
 
 	records = make([]*Record, len(response.Records))
 	for i, record := range response.Records {
 		records[i] = &record
 	}
-	return records, nil
+	return nil
 }
 
 func (a *Airtable) deleteRecords(tableName string, records []*Record) error {

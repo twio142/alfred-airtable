@@ -1,28 +1,73 @@
 package main
 
 import (
-	// "encoding/json"
-	// "io"
-	// "io/fs"
-	// "net/http"
-	// "os"
-	// "strings"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"time"
 	"net/url"
+	"os/exec"
+	"strings"
+	"time"
+	"unicode"
+
+	"github.com/mozillazg/go-pinyin"
 )
 
-func notify(title string, message string) error {
-	// TODO:
-	return nil
+func notify(message string) {
+	_ = exec.Command(
+		"terminal-notifier",
+		"-title",
+		"Airtable",
+		"-message",
+		message,
+		"-sender",
+		"com.runningwithcrayons.Alfred",
+		"-contentImage",
+		"media/airtable.png",
+	).Start()
 }
 
-func matchStr(title string, URL string) string {
-	// TODO:
-	return ""
+var pinyinConverter = pinyin.NewArgs()
+
+func toPinyin(s *string) string {
+	out := ""
+	for _, r := range *s {
+		if !unicode.Is(unicode.Han, r) {
+			out += string(pinyin.Pinyin(string(r), pinyinConverter)[0][0])
+		} else {
+			out += string(r)
+		}
+	}
+	return out
+}
+
+func (l *Link) match() *string {
+	parts := []string{*l.Name, toPinyin(l.Name)}
+	u, err := url.Parse(*l.URL)
+	if err == nil {
+		host := strings.TrimPrefix(u.Host, "www.")
+		parts = append(parts, host)
+	}
+	if l.Note != nil {
+		parts = append(parts, *l.Note)
+	}
+	if l.Category != nil {
+		parts = append(parts, "/"+*l.Category)
+	}
+	for _, tag := range l.Tags {
+		parts = append(parts, "#"+tag)
+	}
+	parts = append(parts, l.ListNames...)
+	return stringPtr(strings.Join(parts, " "))
+}
+
+func (l *List) match() *string {
+	parts := []string{*l.Name, toPinyin(l.Name)}
+	if l.Note != nil {
+		parts = append(parts, *l.Note)
+	}
+	return stringPtr(strings.Join(parts, " "))
 }
 
 func testURL(URL string) bool {
@@ -30,12 +75,10 @@ func testURL(URL string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func getURLTitle(URL string) string {
-	// TODO:
-	return ""
-}
+// func getURLTitle(URL string) string {
+// }
 
-func (l *Link) toRecord() *Record {
+func (l *Link) toRecord() Record {
 	fields := map[string]interface{}{
 		"Done": l.Done,
 	}
@@ -58,13 +101,13 @@ func (l *Link) toRecord() *Record {
 		fields["Lists"] = l.ListIDs
 	}
 
-	return &Record{
+	return Record{
 		Fields: &fields,
 		ID:     l.ID,
 	}
 }
 
-func (l *List) toRecord() *Record {
+func (l *List) toRecord() Record {
 	fields := map[string]interface{}{}
 	if l.Name != nil {
 		fields["Name"] = *l.Name
@@ -76,7 +119,7 @@ func (l *List) toRecord() *Record {
 		fields["Links"] = l.LinkIDs
 	}
 
-	return &Record{
+	return Record{
 		Fields: &fields,
 		ID:     l.ID,
 	}

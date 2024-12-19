@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // Handle user interactions through Alfred
@@ -50,7 +51,7 @@ func (l *Link) format() Item {
 		Subtitle:     subtitle + strings.Join(subParts, "  ·  "),
 		Arg:          arg,
 		Type:         stringPtr("file:skipcheck"),
-		Match:        stringPtr(""), // TODO:
+		Match:        l.match(),
 		QuickLookURL: l.URL,
 		Action: struct {
 			Text *string `json:"text,omitempty"`
@@ -67,7 +68,7 @@ func (l *Link) format() Item {
 			LargeType: stringPtr(strings.Join(largeParts, "\n")),
 		},
 		Icon: &icon,
-		Variables: &map[string]string{
+		Variables: map[string]string{
 			"URL":  *l.URL,
 			"ID":   *l.ID,
 			"rURL": *l.RecordURL,
@@ -133,7 +134,7 @@ func (l *List) format() Item {
 	item := Item{
 		Title:    *l.Name,
 		Subtitle: subtitle,
-		Match:    stringPtr(""), // TODO:
+		Match:    l.match(),
 		Text: struct {
 			Copy      *string `json:"copy,omitempty"`
 			LargeType *string `json:"largetype,omitempty"`
@@ -142,7 +143,7 @@ func (l *List) format() Item {
 			LargeType: &largetype,
 		},
 		Icon: &Icon{Path: stringPtr("media/list.png")},
-		Variables: &map[string]string{
+		Variables: map[string]string{
 			"listID": *l.ID,
 			"rURL":   *l.RecordURL,
 		},
@@ -246,152 +247,498 @@ func (a *Airtable) listLists() {
 
 func (a *Airtable) editLink(input string) {
 	wf := Workflow{}
+	variables := map[string]string{
+		"ID":       os.Getenv("ID"),
+		"title":    os.Getenv("title"),
+		"URL":      os.Getenv("URL"),
+		"note":     os.Getenv("note"),
+		"category": os.Getenv("category"),
+		"tags":     os.Getenv("tags"),
+		"listIDs":  os.Getenv("listIDs"),
+		"done":     os.Getenv("done"),
+	}
+
+	re := regexp.MustCompile(`^(- )?\[(.+)\]\((.+?)\)$`)
+	if variables["URL"] == "" {
+		if matches := re.FindStringSubmatch(os.Getenv("input")); matches != nil {
+			variables["title"] = matches[2]
+			variables["URL"] = matches[3]
+		}
+	}
+
 	link := Link{}
-	variables := map[string]string{}
-	if os.Getenv("ID") != "" {
-		variables["ID"] = os.Getenv("ID")
-		link.ID = stringPtr(os.Getenv("ID"))
-		links, _ := a.Cache.getLinks(nil, link.ID)
-		if len(links) > 0 {
+	if variables["ID"] != "" {
+		if links, _ := a.Cache.getLinks(nil, stringPtr(variables["ID"])); len(links) > 0 {
 			link = links[0]
 		}
 	}
+
+	if link.ID == nil && variables["URL"] == "" {
+		if matches := re.FindStringSubmatch(input); matches != nil {
+			if testURL(matches[3]) {
+				item := Item{
+					Title:        "Save the Link to Airtable",
+					Variables:    variables,
+					QuickLookURL: &matches[3],
+					Icon:         &Icon{Path: stringPtr("media/save.png")},
+				}
+				item.setVar("title", matches[2])
+				item.setVar("URL", matches[3])
+				item.setVar("mode", "save-link")
+				altMod := Mod{
+					Subtitle:  "Edit record",
+					Icon:      &Icon{Path: stringPtr("media/edit.png")},
+					Variables: variables,
+				}
+				altMod.setVar("mode", "edit-link")
+				item.Mods = &map[string]Mod{"alt": altMod}
+				wf.addItem(item)
+				wf.addItem(Item{
+					Title: matches[3],
+					Icon:  &Icon{Path: stringPtr("media/link.png")},
+					Valid: boolPtr(false),
+				})
+				wf.addItem(Item{
+					Title: matches[2],
+					Icon:  &Icon{Path: stringPtr("media/title.png")},
+					Valid: boolPtr(false),
+				})
+				wf.output()
+				return
+			}
+		}
+		wf.addItem(Item{
+			Title:    "Save a Link to Airtable",
+			Subtitle: input,
+			Valid:    boolPtr(false),
+			Icon:     &Icon{Path: stringPtr("media/save.png")},
+		})
+		wf.output()
+		return
+	}
+
+	// Save changes
+	saveItem := Item{
+		Title:     "Save the Link to Airtable",
+		Icon:      &Icon{Path: stringPtr("media/save.png")},
+		Variables: variables,
+	}
+	saveItem.setVar("mode", "save-link")
+	wf.addItem(saveItem)
+
+	// URL
+	currentURL := variables["URL"]
+	if currentURL == "" && link.URL != nil {
+		currentURL = *link.URL
+	}
+	if testURL(input) {
+		// Edit URL
+		item := Item{
+			Title:        "Edit URL: " + input,
+			Subtitle:     "Current: " + currentURL,
+			AutoComplete: &currentURL,
+			QuickLookURL: &input,
+			Valid:        boolPtr(input != currentURL),
+			Icon:         &Icon{Path: stringPtr("media/link.png")},
+			Variables:    variables,
+		}
+		item.setVar("URL", input)
+		wf.addItem(item, true)
+	} else {
+		// Show current URL
+		wf.addItem(Item{
+			Title:        currentURL,
+			Subtitle:     "Edit URL",
+			AutoComplete: &currentURL,
+			QuickLookURL: &currentURL,
+			Icon:         &Icon{Path: stringPtr("media/link.png")},
+			Valid:        boolPtr(false),
+		})
+	}
+
+	// Title
+	currentTitle := variables["title"]
+	if currentTitle == "" {
+		if link.Name != nil {
+			currentTitle = *link.Name
+		} else {
+			variables["title"] = variables["URL"]
+			currentTitle = variables["URL"]
+		}
+	}
+	if input != "" {
+		// Edit title
+		item := Item{
+			Title:        fmt.Sprintf("Edit Title: '%s'", input),
+			Subtitle:     fmt.Sprintf("Current: '%s'", currentTitle),
+			AutoComplete: &currentTitle,
+			Valid:        boolPtr(input != currentTitle),
+			Icon:         &Icon{Path: stringPtr("media/title.png")},
+			Variables:    variables,
+		}
+		item.setVar("title", input)
+		wf.addItem(item, true)
+	} else {
+		// Show current title
+		wf.addItem(Item{
+			Title:        currentTitle,
+			Subtitle:     "Edit Title",
+			AutoComplete: &currentTitle,
+			Icon:         &Icon{Path: stringPtr("media/title.png")},
+			Valid:        boolPtr(false),
+		})
+	}
+
+	// Note
+	currentNote := variables["note"]
+	if currentNote == "__NONE__" {
+		currentNote = ""
+	} else if variables["note"] == "" && link.Note != nil {
+		currentNote = *link.Note
+	}
+	if input != "" {
+		// Edit note
+		item := Item{
+			Title:        "Edit Note: " + input,
+			Subtitle:     "Current: " + currentNote,
+			AutoComplete: &currentNote,
+			Valid:        boolPtr(input != currentNote),
+			Icon:         &Icon{Path: stringPtr("media/note.png")},
+			Variables:    variables,
+		}
+		item.setVar("note", input)
+		wf.addItem(item, true)
+	} else if currentNote != "" {
+		// Show current note
+		wf.addItem(Item{
+			Title:        currentNote,
+			Subtitle:     "Edit Note",
+			AutoComplete: &currentNote,
+			Icon:         &Icon{Path: stringPtr("media/note.png")},
+			Valid:        boolPtr(false),
+		})
+	}
+
+	// Tags
+	currentTags := strings.Split(variables["tags"], ",")
+	if variables["tags"] == "__NONE__" {
+		currentTags = []string{}
+	} else if variables["tags"] == "" && link.Tags != nil {
+		currentTags = link.Tags
+	}
+	tagRe := regexp.MustCompile(`^#(\w*)$`)
+	tagsRe := regexp.MustCompile(`^(#\w+, *)*#\w+$`)
+
+	if matches := tagRe.FindStringSubmatch(input); matches != nil {
+		match := matches[1]
+		if match != "" {
+			// Create a new tag
+			item := Item{
+				Title:     "Create Tag: " + match,
+				Variables: variables,
+				Icon:      &Icon{Path: stringPtr("media/tag-new.png")},
+			}
+			item.setVar("tags", strings.Join(append(currentTags, match), ","))
+			wf.addItem(item, true)
+		}
+
+		// Add an existing tag
+		match = strings.ToLower(match)
+		tagsMap := make(map[string]bool)
+		if tags, _ := a.Cache.getData("tags"); tags != nil {
+			for _, tag := range strings.Split(*tags, ",") {
+				tagsMap[tag] = true
+			}
+			for _, tag := range currentTags {
+				tagsMap[tag] = false
+			}
+		}
+		for tag := range tagsMap {
+			if match == "" || strings.HasPrefix(strings.ToLower(tag), match) {
+				item := Item{
+					Title:        "Add Tag: " + tag,
+					AutoComplete: stringPtr("#" + tag),
+					Variables:    variables,
+					Icon:         &Icon{Path: stringPtr("media/tag.png")},
+				}
+				item.setVar("tags", strings.Join(append(currentTags, tag), ","))
+				wf.addItem(item, true)
+			}
+		}
+
+	} else if tagsRe.FindStringSubmatch(input) != nil {
+		// Edit all tags
+		tagsMap := map[string]bool{}
+		for _, part := range strings.Split(input, ",") {
+			tag := strings.TrimSpace(part)
+			tag = strings.TrimPrefix(tag, "#")
+			tagsMap[tag] = true
+		}
+		tags := []string{}
+		parts := []string{}
+		for tag := range tagsMap {
+			tags = append(tags, tag)
+			parts = append(parts, "#"+tag)
+		}
+		newTagEdit := strings.Join(parts, ", ")
+		parts = []string{}
+		for _, tag := range currentTags {
+			parts = append(parts, "#"+tag)
+		}
+		currentTagEdit := strings.Join(parts, ", ")
+		item := Item{
+			Title:        "Edit Tags: " + newTagEdit,
+			Subtitle:     fmt.Sprintf("Current: %s", currentTagEdit),
+			AutoComplete: stringPtr(currentTagEdit),
+			Variables:    variables,
+		}
+		item.setVar("tags", strings.Join(tags, ","))
+		wf.addItem(item, true)
+
+	} else if len(currentTags) > 0 {
+		// Show current tags
+		parts := []string{}
+		for _, tag := range currentTags {
+			parts = append(parts, "#"+tag)
+		}
+		item := Item{
+			Title:        strings.Join(parts, ", "),
+			Subtitle:     "Edit Tags",
+			Icon:         &Icon{Path: stringPtr("media/tag.png")},
+			AutoComplete: stringPtr(strings.Join(parts, ", ")),
+			Valid:        boolPtr(false),
+		}
+		cmdMod := Mod{
+			Subtitle:  "Remove all tags",
+			Icon:      &Icon{Path: stringPtr("media/tag-delete.png")},
+			Valid:     boolPtr(true),
+			Variables: variables,
+		}
+		cmdMod.setVar("tags", "__NONE__")
+		item.Mods = &map[string]Mod{"cmd": cmdMod}
+		wf.addItem(item)
+	}
+
+	// Edit Category
+	currentCategory := variables["category"]
+	if currentCategory == "__NONE__" {
+		currentCategory = ""
+	} else if currentCategory == "" && link.Category != nil {
+		currentCategory = *link.Category
+	}
+	categoryRe := regexp.MustCompile(`^/(\w*)$`)
+	if matches := categoryRe.FindStringSubmatch(input); matches != nil {
+		match := strings.ToLower(matches[1])
+		if categories, _ := a.Cache.getData("categories"); categories != nil {
+			// Set a category
+			for _, category := range strings.Split(*categories, ",") {
+				if category == currentCategory {
+					continue
+				}
+				if match == "" || strings.HasPrefix(strings.ToLower(category), match) {
+					item := Item{
+						Title:        "Set Category: " + category,
+						AutoComplete: stringPtr("/" + category),
+						Icon:         &Icon{Path: stringPtr("media/category.png")},
+						Variables:    variables,
+					}
+					item.setVar("category", category)
+					wf.addItem(item, true)
+				}
+			}
+		}
+	} else if currentCategory != "" {
+		// Show current category
+		item := Item{
+			Title:        currentCategory,
+			Subtitle:     "Edit Category",
+			AutoComplete: stringPtr("/" + currentCategory),
+			Icon:         &Icon{Path: stringPtr("media/category.png")},
+			Valid:        boolPtr(false),
+		}
+		cmdMod := Mod{
+			Subtitle:  "Remove category",
+			Icon:      &Icon{Path: stringPtr("media/category-delete.png")},
+			Valid:     boolPtr(true),
+			Variables: variables,
+		}
+		cmdMod.setVar("category", "__NONE__")
+		item.Mods = &map[string]Mod{"cmd": cmdMod}
+		wf.addItem(item)
+	}
+
+	// Edit Lists
+	currentListIDs := strings.Split(variables["listIDs"], ",")
+	if variables["listIDs"] == "__NONE__" {
+		currentListIDs = []string{}
+	} else if variables["listIDs"] == "" && link.ListIDs != nil {
+		currentListIDs = link.ListIDs
+	}
+	if strings.HasPrefix(input, "@") || len(currentListIDs) > 0 {
+		listsMap := make(map[string]bool)
+		for _, listID := range currentListIDs {
+			listsMap[listID] = true
+		}
+		listNamesMap := make(map[string]string)
+		if lists, _ := a.Cache.getLists(nil); lists != nil {
+			for _, list := range lists {
+				listNamesMap[*list.ID] = *list.Name
+			}
+		}
+
+		if strings.HasPrefix(input, "@") {
+			match := strings.TrimPrefix(input, "@")
+			// Add to an existing list
+			match = strings.ToLower(match)
+			for listID, listName := range listNamesMap {
+				if listsMap[listID] {
+					continue
+				}
+				if match == "" || strings.Contains(strings.ToLower(listName), match) {
+					item := Item{
+						Title:     "Add to List: " + listName,
+						Variables: variables,
+						Icon:      &Icon{Path: stringPtr("media/list.png")},
+					}
+					item.setVar("listIDs", strings.Join(append(currentListIDs, listID), ","))
+					wf.addItem(item, true)
+				}
+			}
+		}
+
+		// Show current lists
+		for listID, listName := range listNamesMap {
+			if !listsMap[listID] {
+				continue
+			}
+			item := Item{
+				Title: listName,
+				Icon:  &Icon{Path: stringPtr("media/list.png")},
+				Valid: boolPtr(false),
+			}
+			cmdMod := Mod{
+				Subtitle:  "Remove from list",
+				Icon:      &Icon{Path: stringPtr("media/list-delete.png")},
+				Valid:     boolPtr(true),
+				Variables: variables,
+			}
+			listIDs := []string{}
+			for _, id := range currentListIDs {
+				if id != listID {
+					listIDs = append(listIDs, id)
+				}
+			}
+			cmdMod.setVar("listIDs", strings.Join(listIDs, ","))
+			item.Mods = &map[string]Mod{"cmd": cmdMod}
+			wf.addItem(item)
+		}
+	}
+
+	// Done
+	currentDone := variables["done"] == "true"
+	if variables["done"] == "" {
+		currentDone = link.Done
+	}
+	if currentDone {
+		item := Item{
+			Title: "Done",
+			Icon:  &Icon{Path: stringPtr("media/checked.png")},
+			Valid: boolPtr(false),
+		}
+		cmdMod := Mod{
+			Subtitle:  "Mark as not done",
+			Icon:      &Icon{Path: stringPtr("media/unchecked.png")},
+			Valid:     boolPtr(true),
+			Variables: variables,
+		}
+		cmdMod.setVar("done", "false")
+		item.Mods = &map[string]Mod{"cmd": cmdMod}
+		wf.addItem(item)
+	} else if input == ".d" {
+		item := Item{
+			Title:     "Mark as done",
+			Icon:      &Icon{Path: stringPtr("media/checked.png")},
+			Variables: variables,
+		}
+		item.setVar("done", "true")
+		wf.addItem(item, true)
+	}
+
+	wf.setVar("mode", "edit-link")
+	wf.output()
+}
+
+func (a *Airtable) saveLink() {
+	link := Link{}
+	if os.Getenv("ID") != "" {
+		if links, _ := a.Cache.getLinks(nil, stringPtr(os.Getenv("ID"))); len(links) > 0 {
+			link = links[0]
+		}
+	}
+
 	if os.Getenv("title") != "" {
-		variables["Title"] = os.Getenv("title")
 		link.Name = stringPtr(os.Getenv("title"))
 	}
 	if os.Getenv("URL") != "" {
-		variables["URL"] = os.Getenv("URL")
 		link.URL = stringPtr(os.Getenv("URL"))
 	}
-	if os.Getenv("tags") != "" {
-		variables["Tags"] = os.Getenv("tags")
-		if os.Getenv("tags") == "__NONE__" {
-			link.Tags = []string{}
-		} else {
-			link.Tags = strings.Split(os.Getenv("tags"), ",")
-		}
-	}
 	if os.Getenv("note") != "" {
-		variables["Note"] = os.Getenv("note")
-		if os.Getenv("note") == "  " { // two spaces
+		if os.Getenv("note") == "__NONE__" {
 			link.Note = nil
 		} else {
 			link.Note = stringPtr(os.Getenv("note"))
 		}
 	}
 	if os.Getenv("category") != "" {
-		variables["Category"] = os.Getenv("category")
 		if os.Getenv("category") == "__NONE__" {
 			link.Category = nil
-		} else {
-			link.Category = stringPtr(os.Getenv("category"))
+		} else if categories, _ := a.Cache.getData("categories"); categories != nil {
+			for _, category := range strings.Split(*categories, ",") {
+				if category == os.Getenv("category") {
+					link.Category = stringPtr(os.Getenv("category"))
+					break
+				}
+			}
 		}
 	}
-	if os.Getenv("done") == "true" {
-		variables["Done"] = "true"
-		link.Done = true
-	} else if os.Getenv("done") == "false" {
-		variables["Done"] = "false"
-		link.Done = false
+	if os.Getenv("tags") != "" {
+		if os.Getenv("tags") == "__NONE__" {
+			link.Tags = nil
+		} else {
+			link.Tags = strings.Split(os.Getenv("tags"), ",")
+		}
 	}
 	if os.Getenv("listIDs") != "" {
-		variables["ListIDs"] = os.Getenv("listIDs")
 		if os.Getenv("listIDs") == "__NONE__" {
-			link.ListIDs = []string{}
+			link.ListIDs = nil
 		} else {
 			link.ListIDs = strings.Split(os.Getenv("listIDs"), ",")
 		}
 	}
-	if link.URL == nil {
-		if input == "" {
-			input = os.Getenv("input")
-		}
-		re := regexp.MustCompile(`^(- )?\[(.+)\]\((.+?)\)$`)
-		matches := re.FindStringSubmatch(input)
-		if len(matches) == 4 {
-			variables["Title"] = matches[2]
-			variables["URL"] = matches[3]
-			link.Name = stringPtr(matches[2])
-			link.URL = stringPtr(matches[3])
-		} else if testURL(input) {
-			variables["URL"] = input
-			link.URL = stringPtr(input)
-		} else {
-			wf.addItem(Item{
-				Title:    "Save a Link to Airtable",
-				Subtitle: input,
-				Valid:    boolPtr(false),
-			})
-			wf.output()
-			return
-		}
+	if os.Getenv("done") != "" {
+		link.Done = os.Getenv("done") == "true"
 	}
 
-	// Edit URL
-	if testURL(input) {
-		vars := map[string]string{}
-		for k, v := range variables {
-			vars[k] = v
-		}
-		vars["URL"] = input
-		wf.addItem(Item{
-			Title:        "Edit URL: " + input,
-			Subtitle:     "Current: " + *link.URL,
-			AutoComplete: link.URL,
-			QuickLookURL: link.URL,
-			Valid:        boolPtr(input != *link.URL),
-			Icon:         &Icon{Path: stringPtr("media/link.png")},
-			Variables:    &vars,
-		})
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	errChan := make(chan error, 1)
+
+	if link.ID == nil {
+		// create a new link
+		go func() {
+			defer wg.Done()
+			if err := a.createLink(&link); err != nil {
+				errChan <- err
+			}
+		}()
 	} else {
-		wf.addItem(Item{
-			Title:        *link.URL,
-			AutoComplete: link.URL,
-			QuickLookURL: link.URL,
-			Icon:         &Icon{Path: stringPtr("media/link.png")},
-			Valid:        boolPtr(false),
-		})
+		// update the link
+		go func() {
+			defer wg.Done()
+			if err := a.updateLink(&link); err != nil {
+				errChan <- err
+			}
+		}()
 	}
-
-	// Edit Title
-	if input != "" || link.Name != nil {
-		title := input
-		if title == "" {
-			title = *link.Name
-		}
-		currentTitle := ""
-		if link.Name != nil {
-			currentTitle = *link.Name
-		}
-		vars := map[string]string{}
-		for k, v := range variables {
-			vars[k] = v
-		}
-		vars["title"] = input
-		wf.addItem(Item{
-			Title:        fmt.Sprintf("Edit Title: '%s'", title),
-			Subtitle:     fmt.Sprintf("Current: '%s'", currentTitle),
-			AutoComplete: link.Name,
-			Valid:        boolPtr(input != currentTitle),
-			Icon:         &Icon{Path: stringPtr("media/title.png")},
-			Variables:    &vars,
-		})
-	}
-
-	// Edit Tags
-	// check if input starts with '#'
-
-	// Edit Category
-
-	// Edit Lists
-
-	// Edit Done
-
-	// Edit Note
-
-	// Unshift an item to save the link
-
-	wf.setVar("mode", "edit-link")
-	wf.output()
 }

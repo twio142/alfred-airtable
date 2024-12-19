@@ -44,18 +44,17 @@ type Item struct {
 		File *string `json:"file,omitempty"`
 		URL  *string `json:"url,omitempty"`
 	} `json:"action,omitempty"`
-	QuickLookURL *string            `json:"quicklookurl,omitempty"`
-	Icon         *Icon              `json:"icon,omitempty"`
-	Variables    *map[string]string `json:"variables,omitempty"`
-	Mods         *map[string]Mod    `json:"mods"`
+	QuickLookURL *string           `json:"quicklookurl,omitempty"`
+	Icon         *Icon             `json:"icon,omitempty"`
+	Variables    map[string]string `json:"variables,omitempty"`
+	Mods         *map[string]Mod   `json:"mods"`
 }
 
 func (i *Item) setVar(name string, value string) {
 	if i.Variables == nil {
-		variables := make(map[string]string)
-		i.Variables = &variables
+		i.Variables = make(map[string]string)
 	}
-	(*i.Variables)[name] = value
+	i.Variables[name] = value
 }
 
 type Workflow struct {
@@ -63,8 +62,12 @@ type Workflow struct {
 	Variables map[string]string `json:"variables,omitempty"`
 }
 
-func (w *Workflow) addItem(item Item) {
-	w.Items = append(w.Items, item)
+func (w *Workflow) addItem(item Item, prepend ...bool) {
+	if len(prepend) > 0 && prepend[0] {
+		w.Items = append([]Item{item}, w.Items...)
+	} else {
+		w.Items = append(w.Items, item)
+	}
 }
 
 func (w *Workflow) warnEmpty(s ...string) {

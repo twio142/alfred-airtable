@@ -64,12 +64,12 @@ func TestCreateLink(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	link := &Link{
+	link := Link{
 		Name: stringPtr("Test Link"),
 		Note: stringPtr("Test Note"),
 		URL:  stringPtr("http://example.com"),
 	}
-	link, err = airtable.createLink(link)
+	err = airtable.createLink(&link)
 	if err != nil {
 		t.Errorf("createLink() error = %v", err)
 	}
@@ -88,7 +88,7 @@ func TestCreateList(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	list := &List{
+	list := List{
 		Name: stringPtr("Test List"),
 		Note: stringPtr("Test Note"),
 	}
@@ -99,7 +99,7 @@ func TestCreateList(t *testing.T) {
 			URL:  stringPtr("http://example.com"),
 		},
 	}
-	list, err = airtable.createList(list, &links)
+	err = airtable.createList(&list, &links)
 	if err != nil {
 		t.Errorf("createList() error = %v", err)
 	}
@@ -126,17 +126,17 @@ func TestUpdateLink(t *testing.T) {
 		t.Errorf("cacheLinks() error = %v", err)
 	}
 
-	var link *Link
+	var link Link
 	for _, l := range links {
 		if *l.Name == "Test Link" {
-			link = &l
+			link = l
 			break
 		}
 	}
 
 	link.Name = stringPtr("Updated Link")
 
-	link, err = airtable.updateLink(link)
+	err = airtable.updateLink(&link)
 	if err != nil {
 		t.Errorf("updateLink() error = %v", err)
 	}
