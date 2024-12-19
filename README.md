@@ -29,5 +29,4 @@ The workflow supports adding, editing, searching, and filtering records.
 
 ## References
 
-- [My base](https://airtable.com/app8pXTEJQGmXMIKC/)
 - [Airtable API](https://airtable.com/developers/web/api/introduction)
