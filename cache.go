@@ -10,12 +10,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Metadata struct {
-	LastSyncedAt time.Time
-	Tags         []string
-	Categories   []string
-}
-
 type Link struct {
 	Name         *string    `json:"Name,omitempty"`
 	Note         *string    `json:"Note,omitempty"`
@@ -45,23 +39,23 @@ type List struct {
 }
 
 type Cache struct {
-	File         string
-	DB           *sql.DB
-	LastSyncedAt time.Time
-	MaxAge       time.Duration
+	file         string
+	db           *sql.DB
+	lastSyncedAt time.Time
+	maxAge       time.Duration
 }
 
 func (c *Cache) init() error {
-	c.MaxAge = 5 * time.Minute
+	c.maxAge = 5 * time.Minute
 	if os.Getenv("MAX_AGE") != "" {
 		interval, err := time.ParseDuration(os.Getenv("MAX_AGE") + "m")
 		if err == nil && interval >= 0 {
-			c.MaxAge = interval
+			c.maxAge = interval
 		}
 	}
 
-	if c.DB == nil {
-		db, err := sql.Open("sqlite3", c.File)
+	if c.db == nil {
+		db, err := sql.Open("sqlite3", c.file)
 		if err != nil {
 			return err
 		}
@@ -100,11 +94,11 @@ func (c *Cache) init() error {
 			return err
 		}
 
-		c.DB = db
+		c.db = db
 	}
 
 	if str, _ := c.getData("LastSyncedAt"); str != nil {
-		c.LastSyncedAt, _ = time.Parse(time.RFC3339, *str)
+		c.lastSyncedAt, _ = time.Parse(time.RFC3339, *str)
 	}
 	return nil
 }
@@ -142,14 +136,14 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 	var rows *sql.Rows
 	if list != nil {
 		if list.ID != nil {
-			rows, err = c.DB.Query(selectQuery, *list.ID)
+			rows, err = c.db.Query(selectQuery, *list.ID)
 		} else if list.Name != nil {
-			rows, err = c.DB.Query(selectQuery, *list.Name)
+			rows, err = c.db.Query(selectQuery, *list.Name)
 		}
 	} else if linkID != nil {
-		rows, err = c.DB.Query(selectQuery, *linkID)
+		rows, err = c.db.Query(selectQuery, *linkID)
 	} else {
-		rows, err = c.DB.Query(selectQuery)
+		rows, err = c.db.Query(selectQuery)
 	}
 
 	if err != nil {
@@ -208,7 +202,7 @@ func (c *Cache) getLists(list *List) ([]List, error) {
 	GROUP BY Lists.ID
 	ORDER BY Lists.LastModified DESC;
 	`
-	rows, err := c.DB.Query(selectQuery)
+	rows, err := c.db.Query(selectQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +257,7 @@ func (c *Cache) saveLinks(links []Link) error {
 		if link.ListIDs != nil {
 			listIDs = strings.Join(link.ListIDs, ",")
 		}
-		_, err = c.DB.Exec(insertQuery, link.Name, link.Note, link.URL, link.Category, tags, link.Created, link.LastModified, link.RecordURL, link.ID, link.Done, listIDs)
+		_, err = c.db.Exec(insertQuery, link.Name, link.Note, link.URL, link.Category, tags, link.Created, link.LastModified, link.RecordURL, link.ID, link.Done, listIDs)
 		if err != nil {
 			return err
 		}
@@ -283,7 +277,7 @@ func (c *Cache) saveLists(lists []List) error {
 	) VALUES (?, ?, ?, ?, ?, ?)
 	`
 	for _, list := range lists {
-		_, err = c.DB.Exec(insertQuery, list.Name, list.Note, list.Created, list.LastModified, list.RecordURL, list.ID)
+		_, err = c.db.Exec(insertQuery, list.Name, list.Note, list.Created, list.LastModified, list.RecordURL, list.ID)
 		if err != nil {
 			return err
 		}
@@ -305,7 +299,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	}
 
 	existingIDsQuery := `SELECT ID FROM ` + table
-	rows, err := c.DB.Query(existingIDsQuery)
+	rows, err := c.db.Query(existingIDsQuery)
 	if err != nil {
 		return err
 	}
@@ -338,7 +332,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	for i, id := range idsToDelete {
 		args[i] = id
 	}
-	_, err = c.DB.Exec(deleteQuery, args...)
+	_, err = c.db.Exec(deleteQuery, args...)
 	if err != nil {
 		return err
 	}
@@ -349,7 +343,7 @@ func (c *Cache) setData(key string, value string) error {
 	insertQuery := `
   INSERT OR REPLACE INTO Metadata (Key, Value) VALUES (?, ?)
   `
-	_, err := c.DB.Exec(insertQuery, key, value)
+	_, err := c.db.Exec(insertQuery, key, value)
 	if err != nil {
 		return err
 	}
@@ -362,7 +356,7 @@ func (c *Cache) getData(key string) (*string, error) {
   SELECT Value FROM Metadata WHERE Key = ?
   `
 	var value string
-	err := c.DB.QueryRow(selectQuery, key).Scan(&value)
+	err := c.db.QueryRow(selectQuery, key).Scan(&value)
 	if err != nil {
 		return nil, err
 	}
@@ -376,7 +370,7 @@ func (c *Cache) clearCache() error {
   DELETE FROM Links;
   DELETE FROM Lists;
   `
-	_, err := c.DB.Exec(deleteQuery)
+	_, err := c.db.Exec(deleteQuery)
 	if err != nil {
 		return err
 	}

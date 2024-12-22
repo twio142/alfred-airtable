@@ -12,11 +12,11 @@ import (
 // Interact with the Airtable API
 
 type Airtable struct {
-	BaseURL      string
-	BaseID       string
-	Auth         *Auth
-	DBPath       string
-	Cache        *Cache
+	baseURL      string
+	baseID       string
+	auth         *Auth
+	dbPath       string
+	cache        *Cache
 }
 
 type Record struct {
@@ -31,8 +31,8 @@ type Response struct {
 }
 
 func (a *Airtable) init(skipAuth ...bool) error {
-	a.Cache = &Cache{File: a.DBPath}
-	if err := a.Cache.init(); err != nil {
+	a.cache = &Cache{file: a.dbPath}
+	if err := a.cache.init(); err != nil {
 		return err
 	}
 	if len(skipAuth) > 0 && skipAuth[0] {
@@ -43,7 +43,7 @@ func (a *Airtable) init(skipAuth ...bool) error {
 }
 
 func (a *Airtable) fetchRecords(tableName string, params map[string]interface{}) ([]Record, error) {
-	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	searchParams := []string{}
 	for key, value := range params {
 		if str, ok := value.(string); ok {
@@ -60,7 +60,7 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+a.auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -88,13 +88,13 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 }
 
 func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
-	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.BaseID)
+	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.baseID)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+a.auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -153,7 +153,7 @@ func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 }
 
 func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
-	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
 
 	data := map[string]interface{}{
@@ -168,7 +168,7 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+a.auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -200,7 +200,7 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 		}
 		record.CreatedTime = nil
 	}
-	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
 
 	data := map[string]interface{}{
@@ -215,7 +215,7 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+a.auth.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -241,7 +241,7 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 }
 
 func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
-	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
+	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	searchParams := []string{}
 	for _, record := range *records {
 		if record == nil || record.ID == nil {
@@ -255,7 +255,7 @@ func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+a.Auth.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+a.auth.AccessToken)
 
 	resp, err := client.Do(req)
 	if err != nil {

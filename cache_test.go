@@ -7,16 +7,16 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	cache := &Cache{File: "airtable.db"}
+	cache := &Cache{file: "airtable.db"}
 	err := cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	log.Println(cache.LastSyncedAt)
+	log.Println(cache.lastSyncedAt)
 }
 
 func TestGetLinks(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	err := cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
@@ -57,7 +57,7 @@ func TestGetLinks(t *testing.T) {
 }
 
 func TestGetLists(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	now := time.Now()
@@ -90,7 +90,7 @@ func TestGetLists(t *testing.T) {
 }
 
 func TestSaveLinks(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	now := time.Now()
@@ -128,7 +128,7 @@ func TestSaveLinks(t *testing.T) {
 }
 
 func TestSaveLists(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	now := time.Now()
@@ -161,7 +161,7 @@ func TestSaveLists(t *testing.T) {
 }
 
 func TestClearDeletedRecords(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	now := time.Now()
@@ -223,7 +223,7 @@ func TestClearDeletedRecords(t *testing.T) {
 }
 
 func TestSetData(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	err := cache.setData("TestKey", "TestValue")
@@ -242,7 +242,7 @@ func TestSetData(t *testing.T) {
 }
 
 func TestGetData(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	err := cache.setData("TestKey", "TestValue")
@@ -261,7 +261,7 @@ func TestGetData(t *testing.T) {
 }
 
 func TestClearCache(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	_ = cache.init()
 
 	now := time.Now()

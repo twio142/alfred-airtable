@@ -7,9 +7,9 @@ import (
 
 func TestListLists(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {
@@ -20,15 +20,15 @@ func TestListLists(t *testing.T) {
 
 func TestListLinks(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	lists, err := airtable.Cache.getLists(nil)
+	lists, err := airtable.cache.getLists(nil)
 	if err != nil {
 		t.Errorf("getLists() error = %v", err)
 	}
@@ -37,9 +37,9 @@ func TestListLinks(t *testing.T) {
 
 func TestEditLink(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {

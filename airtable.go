@@ -15,7 +15,7 @@ import (
 
 func (a *Airtable) fetchLinks() ([]Link, error) {
 	params := map[string]interface{}{
-		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastSyncedAt.Format(time.RFC3339)),
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.cache.lastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "URL", "Category", "Tags", "Last Modified", "Record URL", "Done", "Lists"},
 	}
 	records, err := a.fetchRecords("Links", params)
@@ -31,7 +31,7 @@ func (a *Airtable) fetchLinks() ([]Link, error) {
 
 func (a *Airtable) fetchLists() ([]List, error) {
 	params := map[string]interface{}{
-		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.Cache.LastSyncedAt.Format(time.RFC3339)),
+		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.cache.lastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "Last Modified", "Record URL", "Links"},
 	}
 	records, err := a.fetchRecords("Lists", params)
@@ -62,7 +62,7 @@ func (a *Airtable) fetchAllIDs(table string) ([]string, error) {
 
 func (a *Airtable) syncData(force ...bool) error {
 	forceSync := len(force) > 0 && force[0]
-	if !forceSync && time.Since(a.Cache.LastSyncedAt) < a.Cache.MaxAge {
+	if !forceSync && time.Since(a.cache.lastSyncedAt) < a.cache.maxAge {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -189,26 +189,26 @@ func (a *Airtable) syncData(force ...bool) error {
 		schema := <-schemaChan
 
 		now := time.Now()
-		if err := a.Cache.clearDeletedRecords("Links", linkIDs); err != nil {
+		if err := a.cache.clearDeletedRecords("Links", linkIDs); err != nil {
 			return err
 		}
-		if err := a.Cache.clearDeletedRecords("Lists", listIDs); err != nil {
+		if err := a.cache.clearDeletedRecords("Lists", listIDs); err != nil {
 			return err
 		}
-		if err := a.Cache.saveLinks(links); err != nil {
+		if err := a.cache.saveLinks(links); err != nil {
 			return err
 		}
-		if err := a.Cache.saveLists(lists); err != nil {
+		if err := a.cache.saveLists(lists); err != nil {
 			return err
 		}
 		if tags := schema[0]; tags != nil {
-			_ = a.Cache.setData("Tags", *tags)
+			_ = a.cache.setData("Tags", *tags)
 		}
 		if categories := schema[1]; categories != nil {
-			_ = a.Cache.setData("Categories", *categories)
+			_ = a.cache.setData("Categories", *categories)
 		}
-		_ = a.Cache.setData("LastSyncedAt", now.Format(time.RFC3339))
-		a.Cache.LastSyncedAt = now
+		_ = a.cache.setData("LastSyncedAt", now.Format(time.RFC3339))
+		a.cache.lastSyncedAt = now
 	}
 
 	return nil
@@ -234,7 +234,7 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 		return fmt.Errorf("List is required")
 	}
 	if list.ID == nil {
-		lists, _ := a.Cache.getLists(list)
+		lists, _ := a.cache.getLists(list)
 		if len(lists) > 0 {
 			list.ID = lists[0].ID
 		} else {
@@ -339,7 +339,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 	if list.Name != nil {
 		name = *list.Name
 	}
-	links, err := a.Cache.getLinks(list, nil)
+	links, err := a.cache.getLinks(list, nil)
 	if err != nil {
 		return nil, err
 	}

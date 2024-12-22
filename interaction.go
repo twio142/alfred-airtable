@@ -204,7 +204,7 @@ func (l *List) format() Item {
 // list all links or links in a list
 func (a *Airtable) listLinks(list *List) {
 	wf := Workflow{}
-	links, err := a.Cache.getLinks(list, nil)
+	links, err := a.cache.getLinks(list, nil)
 	if err != nil {
 		wf.warnEmpty("Error: " + err.Error())
 	} else {
@@ -229,7 +229,7 @@ func (a *Airtable) listLinks(list *List) {
 // list all lists
 func (a *Airtable) listLists() {
 	wf := Workflow{}
-	lists, err := a.Cache.getLists(nil)
+	lists, err := a.cache.getLists(nil)
 	if err != nil {
 		wf.warnEmpty("Error: " + err.Error())
 	} else {
@@ -267,7 +267,7 @@ func (a *Airtable) editLink(input string) {
 
 	link := Link{}
 	if variables["ID"] != "" {
-		if links, _ := a.Cache.getLinks(nil, stringPtr(variables["ID"])); len(links) > 0 {
+		if links, _ := a.cache.getLinks(nil, stringPtr(variables["ID"])); len(links) > 0 {
 			link = links[0]
 		}
 	}
@@ -444,7 +444,7 @@ func (a *Airtable) editLink(input string) {
 		// Add an existing tag
 		match = strings.ToLower(match)
 		tagsMap := make(map[string]bool)
-		if tags, _ := a.Cache.getData("tags"); tags != nil {
+		if tags, _ := a.cache.getData("tags"); tags != nil {
 			for _, tag := range strings.Split(*tags, ",") {
 				tagsMap[tag] = true
 			}
@@ -528,7 +528,7 @@ func (a *Airtable) editLink(input string) {
 	categoryRe := regexp.MustCompile(`^/(\w*)$`)
 	if matches := categoryRe.FindStringSubmatch(input); matches != nil {
 		match := strings.ToLower(matches[1])
-		if categories, _ := a.Cache.getData("categories"); categories != nil {
+		if categories, _ := a.cache.getData("categories"); categories != nil {
 			// Set a category
 			for _, category := range strings.Split(*categories, ",") {
 				if category == currentCategory {
@@ -579,7 +579,7 @@ func (a *Airtable) editLink(input string) {
 			listsMap[listID] = true
 		}
 		listNamesMap := make(map[string]string)
-		if lists, _ := a.Cache.getLists(nil); lists != nil {
+		if lists, _ := a.cache.getLists(nil); lists != nil {
 			for _, list := range lists {
 				listNamesMap[*list.ID] = *list.Name
 			}
@@ -670,7 +670,7 @@ func (a *Airtable) editLink(input string) {
 func (a *Airtable) saveLink() error {
 	link := Link{}
 	if os.Getenv("ID") != "" {
-		if links, _ := a.Cache.getLinks(nil, stringPtr(os.Getenv("ID"))); len(links) > 0 {
+		if links, _ := a.cache.getLinks(nil, stringPtr(os.Getenv("ID"))); len(links) > 0 {
 			link = links[0]
 		}
 	}
@@ -697,7 +697,7 @@ func (a *Airtable) saveLink() error {
 	if os.Getenv("category") != "" {
 		if os.Getenv("category") == "__NONE__" {
 			link.Category = nil
-		} else if categories, _ := a.Cache.getData("categories"); categories != nil {
+		} else if categories, _ := a.cache.getData("categories"); categories != nil {
 			for _, category := range strings.Split(*categories, ",") {
 				if category == os.Getenv("category") {
 					link.Category = stringPtr(os.Getenv("category"))

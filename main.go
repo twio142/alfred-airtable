@@ -30,9 +30,9 @@ func main() {
 	}
 
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  path.Join(cacheDir, "airtable.db"),
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  path.Join(cacheDir, "airtable.db"),
 	}
 	if err := airtable.init(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)

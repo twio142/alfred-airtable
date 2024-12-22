@@ -10,9 +10,9 @@ import (
 
 func TestCacheLinks(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -22,42 +22,42 @@ func TestCacheLinks(t *testing.T) {
 	if err != nil {
 		t.Errorf("cacheLinks() error = %v", err)
 	}
-	links, err := airtable.Cache.getLinks(nil, nil)
+	links, err := airtable.cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
 	log.Println("cached", len(links), "links")
-	airtable.Cache.DB.Close()
+	airtable.cache.db.Close()
 }
 
 func TestCacheLists(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	_ = airtable.Cache.setData("LastSyncedAt", "2000-01-01T00:00:00Z")
+	_ = airtable.cache.setData("LastSyncedAt", "2000-01-01T00:00:00Z")
 	_, err = airtable.fetchLists()
 	if err != nil {
 		t.Errorf("cacheLists() error = %v", err)
 	}
-	lists, err := airtable.Cache.getLists(nil)
+	lists, err := airtable.cache.getLists(nil)
 	if err != nil {
 		t.Errorf("getLists() error = %v", err)
 	}
 	log.Println("cached", len(lists), "lists")
-	airtable.Cache.DB.Close()
+	airtable.cache.db.Close()
 }
 
 func TestCreateLink(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -74,14 +74,14 @@ func TestCreateLink(t *testing.T) {
 		t.Errorf("createLink() error = %v", err)
 	}
 	log.Println("created link", link.ID)
-	airtable.Cache.DB.Close()
+	airtable.cache.db.Close()
 }
 
 func TestCreateList(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -107,14 +107,14 @@ func TestCreateList(t *testing.T) {
 	if len(list.LinkIDs) != 1 {
 		t.Errorf("createList() error = %v", "link not added")
 	}
-	airtable.Cache.DB.Close()
+	airtable.cache.db.Close()
 }
 
 func TestUpdateLink(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -142,21 +142,21 @@ func TestUpdateLink(t *testing.T) {
 	}
 
 	log.Println("updated link", link.ID, *link.Name)
-	airtable.Cache.DB.Close()
+	airtable.cache.db.Close()
 }
 
 func TestDeleteLink(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
 
-	links, err := airtable.Cache.getLinks(nil, nil)
+	links, err := airtable.cache.getLinks(nil, nil)
 	if err != nil {
 		t.Errorf("getLinks() error = %v", err)
 	}
@@ -180,21 +180,21 @@ func TestDeleteLink(t *testing.T) {
 	}
 
 	_, _ = airtable.fetchLinks()
-	_ = airtable.Cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
-	airtable.Cache.DB.Close()
+	_ = airtable.cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
+	airtable.cache.db.Close()
 }
 
 func TestDeleteList(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	airtable.Cache.LastSyncedAt = time.Time{}
+	airtable.cache.lastSyncedAt = time.Time{}
 
 	lists, _ := airtable.fetchLists()
 	var list *List
@@ -230,40 +230,40 @@ func TestDeleteList(t *testing.T) {
 	}()
 
 	wg.Wait()
-	_ = airtable.Cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
-	airtable.Cache.DB.Close()
+	_ = airtable.cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
+	airtable.cache.db.Close()
 }
 
 func TestSyncData(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	log.Println(airtable.Cache.LastSyncedAt)
+	log.Println(airtable.cache.lastSyncedAt)
 	err = airtable.syncData(false)
 	if err != nil {
 		t.Errorf("cacheData() error = %v", err)
 	}
-	log.Println(airtable.Cache.LastSyncedAt)
-	airtable.Cache.DB.Close()
+	log.Println(airtable.cache.lastSyncedAt)
+	airtable.cache.db.Close()
 }
 
 func TestListToLinkCopier(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	lists, err := airtable.Cache.getLists(nil)
+	lists, err := airtable.cache.getLists(nil)
 	if err != nil {
 		t.Errorf("getLists() error = %v", err)
 	}

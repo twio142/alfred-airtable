@@ -10,9 +10,9 @@ import (
 
 func TestFetchRecords(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -36,9 +36,9 @@ func TestFetchRecords(t *testing.T) {
 
 func TestFetchSchema(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -49,8 +49,8 @@ func TestFetchSchema(t *testing.T) {
 	if err != nil {
 		t.Errorf("fetchSchema() error = %v", err)
 	}
-	_ = airtable.Cache.setData("Tags", strings.Join(*tags, ","))
-	_ = airtable.Cache.setData("Categories", strings.Join(*categories, ","))
+	_ = airtable.cache.setData("Tags", strings.Join(*tags, ","))
+	_ = airtable.cache.setData("Categories", strings.Join(*categories, ","))
 
 	log.Println(tags)
 	log.Println(categories)
@@ -58,9 +58,9 @@ func TestFetchSchema(t *testing.T) {
 
 func TestCreateRecords(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -85,9 +85,9 @@ func TestCreateRecords(t *testing.T) {
 
 func TestUpdateRecords(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -126,9 +126,9 @@ func TestUpdateRecords(t *testing.T) {
 
 func TestDeleteRecords(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "airtable.db",
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {

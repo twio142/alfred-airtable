@@ -21,10 +21,10 @@ import (
 
 func TestAuth_isValid(t *testing.T) {
 	airtable := &Airtable{
-		DBPath:  "airtable.db",
+		dbPath:  "airtable.db",
 	}
-	airtable.Cache = &Cache{File: airtable.DBPath}
-	err := airtable.Cache.init()
+	airtable.cache = &Cache{file: airtable.dbPath}
+	err := airtable.cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
@@ -32,14 +32,14 @@ func TestAuth_isValid(t *testing.T) {
 	auth := Auth{
 		Token: &oauth2.Token{},
 	}
-	auth.read(airtable.Cache)
-	airtable.Auth = &auth
+	auth.read(airtable.cache)
+	airtable.auth = &auth
 
-	if !airtable.Auth.Valid() {
+	if !airtable.auth.Valid() {
 		t.Errorf("Expected token to be valid")
 	}
 
-	airtable.Auth.Expiry = time.Now().Add(-time.Hour)
+	airtable.auth.Expiry = time.Now().Add(-time.Hour)
 	if auth.Valid() {
 		t.Errorf("Expected token to be invalid")
 	}
@@ -47,10 +47,10 @@ func TestAuth_isValid(t *testing.T) {
 
 func TestAuth_isRefreshValid(t *testing.T) {
 	airtable := &Airtable{
-		DBPath:  "airtable.db",
+		dbPath:  "airtable.db",
 	}
-	airtable.Cache = &Cache{File: airtable.DBPath}
-	err := airtable.Cache.init()
+	airtable.cache = &Cache{file: airtable.dbPath}
+	err := airtable.cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
@@ -58,7 +58,7 @@ func TestAuth_isRefreshValid(t *testing.T) {
 	auth := Auth{
 		Token: &oauth2.Token{},
 	}
-	auth.read(airtable.Cache)
+	auth.read(airtable.cache)
 
 	if !auth.refreshValid() {
 		t.Errorf("Expected refresh token to be valid")
@@ -71,7 +71,7 @@ func TestAuth_isRefreshValid(t *testing.T) {
 }
 
 func TestAuth_read(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	cache.init()
 	cache.setData("AccessToken", "test_token")
 	cache.setData("Expiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
@@ -92,7 +92,7 @@ func TestAuth_read(t *testing.T) {
 }
 
 func TestAuth_write(t *testing.T) {
-	cache := &Cache{File: ":memory:"}
+	cache := &Cache{file: ":memory:"}
 	cache.init()
 
 	auth := &Auth{
@@ -117,10 +117,10 @@ func TestAuth_write(t *testing.T) {
 
 func TestAuth(t *testing.T) {
 	a := &Airtable{
-		Auth:  &Auth{},
-		Cache: &Cache{File: ":memory:"},
+		auth:  &Auth{},
+		cache: &Cache{file: ":memory:"},
 	}
-	a.Cache.init()
+	a.cache.init()
 
 	o := &OAuth{}
 	o.init()
@@ -154,8 +154,8 @@ func TestAuth(t *testing.T) {
 	}
 
 	newAuth := <-o.authComplete
-	newAuth.write(a.Cache)
-	a.Auth = &newAuth
+	newAuth.write(a.cache)
+	a.auth = &newAuth
 
 	// Shutdown the server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -168,10 +168,10 @@ func TestAuth(t *testing.T) {
 
 func TestRefresh(t *testing.T) {
 	a := &Airtable{
-		Auth:  &Auth{},
-		Cache: &Cache{File: ":memory:"},
+		auth:  &Auth{},
+		cache: &Cache{file: ":memory:"},
 	}
-	a.Cache.init()
+	a.cache.init()
 
 	o := &OAuth{}
 	o.init()
@@ -207,8 +207,8 @@ func TestRefresh(t *testing.T) {
 
 		select {
 		case newAuth := <-o.authComplete:
-			a.Auth = &newAuth
-			newAuth.write(a.Cache)
+			a.auth = &newAuth
+			newAuth.write(a.cache)
 		case <-time.After(10 * time.Second):
 			t.Fatal("Timeout waiting for new authentication")
 		}
@@ -222,8 +222,8 @@ func TestRefresh(t *testing.T) {
 	}
 
 	newAuth := <-o.authComplete
-	newAuth.write(a.Cache)
-	a.Auth = &newAuth
+	newAuth.write(a.cache)
+	a.auth = &newAuth
 }
 
 func TestMain(m *testing.M) {

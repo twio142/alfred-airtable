@@ -311,23 +311,23 @@ func (a *Airtable) getAuth() error {
 	auth := Auth{
 		Token: &oauth2.Token{},
 	}
-	auth.read(a.Cache)
-	a.Auth = &auth
-	if a.Auth.Valid() {
+	auth.read(a.cache)
+	a.auth = &auth
+	if a.auth.Valid() {
 		return nil
-	} else if a.Auth.refreshValid() {
+	} else if a.auth.refreshValid() {
 		server = o.startServer()
 		defer server.Shutdown(context.Background())
 
-		if err := exec.Command("curl", baseURL+"/refresh?refresh_token="+a.Auth.RefreshToken).Start(); err != nil {
+		if err := exec.Command("curl", baseURL+"/refresh?refresh_token="+a.auth.RefreshToken).Start(); err != nil {
 			return err
 		}
 
 		newAuth := <-o.authComplete
 
 		if newAuth.Token != nil && newAuth.AccessToken != "" {
-			a.Auth = &newAuth
-			newAuth.write(a.Cache)
+			a.auth = &newAuth
+			newAuth.write(a.cache)
 			return nil
 		}
 	}
@@ -342,8 +342,8 @@ func (a *Airtable) getAuth() error {
 	}
 
 	newAuth := <-o.authComplete
-	newAuth.write(a.Cache)
-	a.Auth = &newAuth
+	newAuth.write(a.cache)
+	a.auth = &newAuth
 
 	if newAuth.Token == nil || newAuth.AccessToken == "" {
 		return fmt.Errorf("failed to get auth")
