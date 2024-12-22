@@ -12,7 +12,7 @@ func TestCacheLinks(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -34,7 +34,7 @@ func TestCacheLists(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -57,7 +57,7 @@ func TestCreateLink(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -81,7 +81,7 @@ func TestCreateList(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -114,7 +114,7 @@ func TestUpdateLink(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -149,7 +149,7 @@ func TestDeleteLink(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -169,6 +169,10 @@ func TestDeleteLink(t *testing.T) {
 			break
 		}
 	}
+	if link == nil {
+		t.Errorf("link not found")
+		return
+	}
 
 	err = airtable.deleteLink(link)
 	if err != nil {
@@ -184,7 +188,7 @@ func TestDeleteList(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -230,11 +234,11 @@ func TestDeleteList(t *testing.T) {
 	airtable.Cache.DB.Close()
 }
 
-func TestCacheData(t *testing.T) {
+func TestSyncData(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -253,7 +257,7 @@ func TestListToLinkCopier(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {

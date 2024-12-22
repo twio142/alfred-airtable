@@ -195,8 +195,8 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 
 func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 	for _, record := range *records {
-		if record.ID == nil {
-			return fmt.Errorf("record ID is required for update")
+		if record == nil || record.ID == nil {
+			return fmt.Errorf("record with an ID is required for update")
 		}
 		record.CreatedTime = nil
 	}
@@ -244,8 +244,8 @@ func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.BaseURL, a.BaseID, tableName)
 	searchParams := []string{}
 	for _, record := range *records {
-		if record.ID == nil {
-			return fmt.Errorf("record ID is required for update")
+		if record == nil || record.ID == nil {
+			return fmt.Errorf("record with an ID is required for delete")
 		}
 		searchParams = append(searchParams, fmt.Sprintf("records[]=%s", *record.ID))
 	}

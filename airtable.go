@@ -215,6 +215,9 @@ func (a *Airtable) syncData(force ...bool) error {
 }
 
 func (a *Airtable) createLink(link *Link) error {
+	if link == nil {
+		return fmt.Errorf("Link is required")
+	}
 	record := link.toRecord()
 	records := []*Record{&record}
 	err := a.createRecords("Links", &records)
@@ -227,6 +230,9 @@ func (a *Airtable) createLink(link *Link) error {
 }
 
 func (a *Airtable) createList(list *List, links *[]Link) error {
+	if list == nil {
+		return fmt.Errorf("List is required")
+	}
 	if list.ID == nil {
 		lists, _ := a.Cache.getLists(list)
 		if len(lists) > 0 {
@@ -263,15 +269,15 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 	if err != nil {
 		return err
 	}
-	for _, linkRecord := range linkRecords {
-		list.LinkIDs = append(list.LinkIDs, *linkRecord.ID)
+	for i, linkRecord := range linkRecords {
+		list.LinkIDs[i] = *linkRecord.ID
 	}
 	return nil
 }
 
 func (a *Airtable) updateLink(link *Link) error {
-	if link.ID == nil {
-		return fmt.Errorf("Link ID is required")
+	if link == nil || link.ID == nil {
+		return fmt.Errorf("Link with an ID is required")
 	}
 	record := link.toRecord()
 	records := []*Record{&record}
@@ -284,8 +290,8 @@ func (a *Airtable) updateLink(link *Link) error {
 }
 
 func (a *Airtable) updateList(list *List) error {
-	if list.ID == nil {
-		return fmt.Errorf("List ID is required")
+	if list == nil || list.ID == nil {
+		return fmt.Errorf("List with an ID is required")
 	}
 	record := list.toRecord()
 	records := []*Record{&record}
@@ -298,23 +304,23 @@ func (a *Airtable) updateList(list *List) error {
 }
 
 func (a *Airtable) deleteLink(link *Link) error {
-	if link.ID == nil {
-		return fmt.Errorf("Link ID is required")
+	if link == nil || link.ID == nil {
+		return fmt.Errorf("Link with an ID is required")
 	}
 	return a.deleteRecords("Links", &[]*Record{{ID: link.ID}})
 }
 
 func (a *Airtable) deleteList(list *List, deleteLinks bool) error {
-	if list.ID == nil {
-		return fmt.Errorf("List ID is required")
+	if list == nil || list.ID == nil {
+		return fmt.Errorf("List with an ID is required")
 	}
 	if deleteLinks && len(list.LinkIDs) > 0 {
 		records := make([]*Record, len(list.LinkIDs))
-		for _, linkID := range list.LinkIDs {
+		for i, linkID := range list.LinkIDs {
 			record := Record{
 				ID: &linkID,
 			}
-			records = append(records, &record)
+			records[i] = &record
 		}
 		err := a.deleteRecords("Links", &records)
 		if err != nil {

@@ -9,7 +9,7 @@ func TestListLists(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {
@@ -22,7 +22,7 @@ func TestListLinks(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestEditLink(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init(true)
 	if err != nil {

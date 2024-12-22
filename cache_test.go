@@ -7,7 +7,7 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	cache := &Cache{File: "cache_test.db"}
+	cache := &Cache{File: "airtable.db"}
 	err := cache.init()
 	if err != nil {
 		t.Errorf("init() error = %v", err)

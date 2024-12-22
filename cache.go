@@ -117,7 +117,7 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 
 	selectQuery := `
   SELECT Links.Name, Links.Note, URL, Category, Tags, Links.Created, Links.LastModified, Links.RecordURL, Links.ID, Done, ListIDs,
-      IFNULL(GROUP_CONCAT(Lists.Name, '\n'), '') AS ListNames
+      GROUP_CONCAT(Lists.Name, '\n') AS ListNames
   FROM Links
   LEFT JOIN Lists ON Links.ListIDs LIKE '%' || Lists.ID || '%'
   `
@@ -160,19 +160,19 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 	var links []Link
 	for rows.Next() {
 		var link Link
-		var tags, listIDs, listNames string
+		var tags, listIDs, listNames sql.NullString
 		err = rows.Scan(&link.Name, &link.Note, &link.URL, &link.Category, &tags, &link.Created, &link.LastModified, &link.RecordURL, &link.ID, &link.Done, &listIDs, &listNames)
 		if err != nil {
 			return nil, err
 		}
-		if tags != "" {
-			link.Tags = strings.Split(tags, ",")
+		if tags.Valid {
+			link.Tags = strings.Split(tags.String, ",")
 		}
-		if listIDs != "" {
-			link.ListIDs = strings.Split(listIDs, ",")
+		if listIDs.Valid {
+			link.ListIDs = strings.Split(listIDs.String, ",")
 		}
-		if listNames != "" {
-			link.ListNames = strings.Split(listNames, "\n")
+		if listNames.Valid {
+			link.ListNames = strings.Split(listNames.String, "\n")
 		}
 		links = append(links, link)
 	}
@@ -217,17 +217,17 @@ func (c *Cache) getLists(list *List) ([]List, error) {
 	var lists []List
 	for rows.Next() {
 		var list List
-		var linkIDs string
-		var linkNames string
+		var linkIDs sql.NullString
+		var linkNames sql.NullString
 		err = rows.Scan(&list.Name, &list.Note, &list.Created, &list.LastModified, &list.RecordURL, &list.ID, &list.LinksDone, &linkIDs, &linkNames)
 		if err != nil {
 			return nil, err
 		}
-		if linkIDs != "" {
-			list.LinkIDs = strings.Split(linkIDs, ",")
+		if linkIDs.Valid && linkIDs.String != "" {
+			list.LinkIDs = strings.Split(linkIDs.String, ",")
 		}
-		if linkNames != "" {
-			list.LinkNames = strings.Split(linkNames, "\n")
+		if linkNames.Valid {
+			list.LinkNames = strings.Split(linkNames.String, "\n")
 		}
 		status := "In progress"
 		switch *list.LinksDone {

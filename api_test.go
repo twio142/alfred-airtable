@@ -12,7 +12,7 @@ func TestFetchRecords(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -38,7 +38,7 @@ func TestFetchSchema(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -60,7 +60,7 @@ func TestCreateRecords(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -87,7 +87,7 @@ func TestUpdateRecords(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {
@@ -128,7 +128,7 @@ func TestDeleteRecords(t *testing.T) {
 	airtable := &Airtable{
 		BaseURL: "https://api.airtable.com/v0",
 		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	err := airtable.init()
 	if err != nil {

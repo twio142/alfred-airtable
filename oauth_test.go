@@ -21,9 +21,7 @@ import (
 
 func TestAuth_isValid(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	airtable.Cache = &Cache{File: airtable.DBPath}
 	err := airtable.Cache.init()
@@ -49,9 +47,7 @@ func TestAuth_isValid(t *testing.T) {
 
 func TestAuth_isRefreshValid(t *testing.T) {
 	airtable := &Airtable{
-		BaseURL: "https://api.airtable.com/v0",
-		BaseID:  os.Getenv("BASE_ID"),
-		DBPath:  "cache_test.db",
+		DBPath:  "airtable.db",
 	}
 	airtable.Cache = &Cache{File: airtable.DBPath}
 	err := airtable.Cache.init()
@@ -63,7 +59,6 @@ func TestAuth_isRefreshValid(t *testing.T) {
 		Token: &oauth2.Token{},
 	}
 	auth.read(airtable.Cache)
-	airtable.Auth = &auth
 
 	if !auth.refreshValid() {
 		t.Errorf("Expected refresh token to be valid")
@@ -83,7 +78,9 @@ func TestAuth_read(t *testing.T) {
 	cache.setData("RefreshToken", "test_refresh_token")
 	cache.setData("RefreshExpiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
 
-	auth := &Auth{}
+	auth := &Auth{
+		Token: &oauth2.Token{},
+	}
 	auth.read(cache)
 
 	if auth.AccessToken != "test_token" {
