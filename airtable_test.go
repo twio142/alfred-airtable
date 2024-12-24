@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	// "reflect"
 	"sync"
 	"testing"
 	"time"
 )
 
-func TestCacheLinks(t *testing.T) {
+func TestFetchLinks(t *testing.T) {
 	airtable := &Airtable{
 		baseURL: "https://api.airtable.com/v0",
 		baseID:  os.Getenv("BASE_ID"),
@@ -18,19 +19,17 @@ func TestCacheLinks(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	_, err = airtable.fetchLinks()
+	airtable.cache.lastSyncedAt = time.Time{}
+	links, err := airtable.fetchLinks()
 	if err != nil {
 		t.Errorf("cacheLinks() error = %v", err)
 	}
-	links, err := airtable.cache.getLinks(nil, nil)
-	if err != nil {
-		t.Errorf("getLinks() error = %v", err)
-	}
+	_ = airtable.cache.saveLinks(links)
 	log.Println("cached", len(links), "links")
 	airtable.cache.db.Close()
 }
 
-func TestCacheLists(t *testing.T) {
+func TestFetchLists(t *testing.T) {
 	airtable := &Airtable{
 		baseURL: "https://api.airtable.com/v0",
 		baseID:  os.Getenv("BASE_ID"),
@@ -41,16 +40,50 @@ func TestCacheLists(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 	_ = airtable.cache.setData("LastSyncedAt", "2000-01-01T00:00:00Z")
-	_, err = airtable.fetchLists()
+	lists, err := airtable.fetchLists()
 	if err != nil {
 		t.Errorf("cacheLists() error = %v", err)
 	}
-	lists, err := airtable.cache.getLists(nil)
-	if err != nil {
-		t.Errorf("getLists() error = %v", err)
-	}
+	_ = airtable.cache.saveLists(lists)
 	log.Println("cached", len(lists), "lists")
 	airtable.cache.db.Close()
+}
+
+func TestFetchAllIDs(t *testing.T) {
+	airtable := &Airtable{
+		baseURL: "https://api.airtable.com/v0",
+		baseID:  os.Getenv("BASE_ID"),
+		dbPath:  "airtable.db",
+	}
+	err := airtable.init()
+	if err != nil {
+		t.Errorf("init() error = %v", err)
+	}
+	type args struct {
+		table string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{"links", args{"Links"}, nil, false},
+		{"lists", args{"Lists"}, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := airtable.fetchAllIDs(tt.args.table)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Airtable.fetchAllIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			log.Println(tt.name, len(got), "records")
+			// if !reflect.DeepEqual(got, tt.want) {
+			// 	t.Errorf("Airtable.fetchAllIDs() = %v, want %v", got, tt.want)
+			// }
+		})
+	}
 }
 
 func TestCreateLink(t *testing.T) {
@@ -244,12 +277,16 @@ func TestSyncData(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
-	log.Println(airtable.cache.lastSyncedAt)
-	err = airtable.syncData(false)
+	links, _ := airtable.cache.getLinks(nil, nil)
+	log.Println("got", len(links), "links")
+	airtable.cache.lastSyncedAt = time.Time{}
+	err = airtable.syncData()
 	if err != nil {
 		t.Errorf("cacheData() error = %v", err)
 	}
 	log.Println(airtable.cache.lastSyncedAt)
+	links, _ = airtable.cache.getLinks(nil, nil)
+	log.Println("got", len(links), "links")
 	airtable.cache.db.Close()
 }
 

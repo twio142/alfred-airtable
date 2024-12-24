@@ -69,9 +69,8 @@ func (l *Link) format() Item {
 		},
 		Icon: &icon,
 		Variables: map[string]string{
-			"URL":  *l.URL,
-			"ID":   *l.ID,
-			"rURL": *l.RecordURL,
+			"URL": *l.URL,
+			"ID":  *l.ID,
 		},
 		Mods: &map[string]Mod{
 			"alt": {
@@ -96,14 +95,14 @@ func (l *Link) format() Item {
 				Icon:     &Icon{Path: stringPtr("media/delete.png")},
 				Variables: map[string]string{
 					"ID":   *l.ID,
-					"mode": "delete-link",
+					"exec": "delete-link",
 				},
 			},
 			"fn": {
 				Subtitle: "Rebuild cache",
 				Icon:     &Icon{Path: stringPtr("media/reload.png")},
 				Variables: map[string]string{
-					"mode": "sync",
+					"exec": "force-sync",
 				},
 			},
 		},
@@ -115,7 +114,7 @@ func (l *Link) format() Item {
 			Icon:     &Icon{Path: stringPtr("media/checked.png")},
 			Variables: map[string]string{
 				"ID":   *l.ID,
-				"mode": "complete-link",
+				"exec": "complete-link",
 			},
 		}
 	}
@@ -146,7 +145,7 @@ func (l *List) format() Item {
 		Icon: &Icon{Path: stringPtr("media/list.png")},
 		Variables: map[string]string{
 			"listID": *l.ID,
-			"rURL":   *l.RecordURL,
+			"mode":   "list-links",
 		},
 		Mods: &map[string]Mod{
 			"cmd": {
@@ -161,7 +160,7 @@ func (l *List) format() Item {
 				Subtitle: "Send to link copier",
 				Icon:     &Icon{Path: stringPtr("media/clip.png")},
 				Variables: map[string]string{
-					"mode":   "list2lc",
+					"exec":   "list-to-lc",
 					"listID": *l.ID,
 				},
 			},
@@ -169,7 +168,7 @@ func (l *List) format() Item {
 				Subtitle: "Delete list",
 				Icon:     &Icon{Path: stringPtr("media/delete.png")},
 				Variables: map[string]string{
-					"mode":   "delete-list-links",
+					"exec":   "delete-list-links",
 					"listID": *l.ID,
 				},
 			},
@@ -177,7 +176,7 @@ func (l *List) format() Item {
 				Subtitle: "Delete list but keep links",
 				Icon:     &Icon{Path: stringPtr("media/delete.png")},
 				Variables: map[string]string{
-					"mode":   "delete-list",
+					"exec":   "delete-list",
 					"listID": *l.ID,
 				},
 			},
@@ -185,14 +184,14 @@ func (l *List) format() Item {
 				Subtitle: "Open record",
 				Arg:      *l.RecordURL,
 				Variables: map[string]string{
-					"url": *l.RecordURL,
+					"URL": *l.RecordURL,
 				},
 			},
 			"fn": {
 				Subtitle: "Rebuild cache",
 				Icon:     &Icon{Path: stringPtr("media/reload.png")},
 				Variables: map[string]string{
-					"mode": "sync",
+					"exec": "force-sync",
 				},
 			},
 		},
@@ -218,8 +217,10 @@ func (a *Airtable) listLinks(list *List) {
 		if list != nil {
 			wf.addItem(Item{
 				Title: "Go Back",
-				Arg:   "__BACK__",
 				Icon:  &Icon{Path: stringPtr("media/back.png")},
+				Variables: map[string]string{
+					"mode": "list-lists",
+				},
 			})
 		}
 	}
@@ -257,9 +258,10 @@ func (a *Airtable) editLink(input string) {
 		"done":     os.Getenv("done"),
 	}
 
-	re := regexp.MustCompile(`^(- )?\[(.+)\]\((.+?)\)$`)
+	mdLinkRe := regexp.MustCompile(`^(- )?\[(.+)\]\((.+?)\)$`)
+	inputMd := false
 	if variables["URL"] == "" {
-		if matches := re.FindStringSubmatch(os.Getenv("input")); matches != nil {
+		if matches := mdLinkRe.FindStringSubmatch(os.Getenv("input")); matches != nil {
 			variables["title"] = matches[2]
 			variables["URL"] = matches[3]
 		}
@@ -273,57 +275,57 @@ func (a *Airtable) editLink(input string) {
 	}
 
 	if link.ID == nil && variables["URL"] == "" {
-		if matches := re.FindStringSubmatch(input); matches != nil {
-			if testURL(matches[3]) {
-				item := Item{
-					Title:        "Save the Link to Airtable",
-					Variables:    variables,
-					QuickLookURL: &matches[3],
-					Icon:         &Icon{Path: stringPtr("media/save.png")},
-				}
-				item.setVar("title", matches[2])
-				item.setVar("URL", matches[3])
-				item.setVar("mode", "save-link")
-				altMod := Mod{
-					Subtitle:  "Edit record",
-					Icon:      &Icon{Path: stringPtr("media/edit.png")},
-					Variables: variables,
-				}
-				altMod.setVar("mode", "edit-link")
-				item.Mods = &map[string]Mod{"alt": altMod}
-				wf.addItem(item)
-				wf.addItem(Item{
-					Title: matches[3],
-					Icon:  &Icon{Path: stringPtr("media/link.png")},
-					Valid: boolPtr(false),
-				})
-				wf.addItem(Item{
-					Title: matches[2],
-					Icon:  &Icon{Path: stringPtr("media/title.png")},
-					Valid: boolPtr(false),
-				})
-				wf.output()
-				return
+		if matches := mdLinkRe.FindStringSubmatch(input); matches != nil && testURL(matches[3]) {
+			inputMd = true
+			item := Item{
+				Title:        "Save the Link to Airtable",
+				QuickLookURL: &matches[3],
+				Icon:         &Icon{Path: stringPtr("media/save.png")},
 			}
+			item.setVars(variables)
+			item.setVar("title", matches[2])
+			item.setVar("URL", matches[3])
+			item.setVar("exec", "save-link")
+			altMod := Mod{
+				Subtitle: "Edit record",
+				Icon:     &Icon{Path: stringPtr("media/edit.png")},
+			}
+			altMod.setVars(variables)
+			altMod.setVar("title", matches[2])
+			altMod.setVar("URL", matches[3])
+			altMod.setVar("mode", "edit-link")
+			item.Mods = &map[string]Mod{"alt": altMod}
+			wf.addItem(item)
+			wf.addItem(Item{
+				Title: matches[3],
+				Icon:  &Icon{Path: stringPtr("media/link.png")},
+				Valid: boolPtr(false),
+			})
+			wf.addItem(Item{
+				Title: matches[2],
+				Icon:  &Icon{Path: stringPtr("media/title.png")},
+				Valid: boolPtr(false),
+			})
+		} else {
+			wf.addItem(Item{
+				Title:    "Save a Link to Airtable",
+				Subtitle: input,
+				Valid:    boolPtr(false),
+				Icon:     &Icon{Path: stringPtr("media/save.png")},
+			})
+			wf.output()
+			return
 		}
-		wf.addItem(Item{
-			Title:    "Save a Link to Airtable",
-			Subtitle: input,
-			Valid:    boolPtr(false),
-			Icon:     &Icon{Path: stringPtr("media/save.png")},
-		})
-		wf.output()
-		return
+	} else {
+		// Save changes
+		saveItem := Item{
+			Title: "Save the Link to Airtable",
+			Icon:  &Icon{Path: stringPtr("media/save.png")},
+		}
+		saveItem.setVars(variables)
+		saveItem.setVar("exec", "save-link")
+		wf.addItem(saveItem)
 	}
-
-	// Save changes
-	saveItem := Item{
-		Title:     "Save the Link to Airtable",
-		Icon:      &Icon{Path: stringPtr("media/save.png")},
-		Variables: variables,
-	}
-	saveItem.setVar("mode", "save-link")
-	wf.addItem(saveItem)
 
 	// URL
 	currentURL := variables["URL"]
@@ -339,11 +341,11 @@ func (a *Airtable) editLink(input string) {
 			QuickLookURL: &input,
 			Valid:        boolPtr(input != currentURL),
 			Icon:         &Icon{Path: stringPtr("media/link.png")},
-			Variables:    variables,
 		}
+		item.setVars(variables)
 		item.setVar("URL", input)
 		wf.addItem(item, true)
-	} else {
+	} else if currentURL != "" {
 		// Show current URL
 		wf.addItem(Item{
 			Title:        currentURL,
@@ -365,7 +367,7 @@ func (a *Airtable) editLink(input string) {
 			currentTitle = variables["URL"]
 		}
 	}
-	if input != "" {
+	if !inputMd && input != "" {
 		// Edit title
 		item := Item{
 			Title:        fmt.Sprintf("Edit Title: '%s'", input),
@@ -373,11 +375,11 @@ func (a *Airtable) editLink(input string) {
 			AutoComplete: &currentTitle,
 			Valid:        boolPtr(input != currentTitle),
 			Icon:         &Icon{Path: stringPtr("media/title.png")},
-			Variables:    variables,
 		}
+		item.setVars(variables)
 		item.setVar("title", input)
 		wf.addItem(item, true)
-	} else {
+	} else if currentTitle != "" {
 		// Show current title
 		wf.addItem(Item{
 			Title:        currentTitle,
@@ -395,7 +397,7 @@ func (a *Airtable) editLink(input string) {
 	} else if variables["note"] == "" && link.Note != nil {
 		currentNote = *link.Note
 	}
-	if input != "" {
+	if !inputMd && input != "" {
 		// Edit note
 		item := Item{
 			Title:        "Edit Note: " + input,
@@ -403,8 +405,8 @@ func (a *Airtable) editLink(input string) {
 			AutoComplete: &currentNote,
 			Valid:        boolPtr(input != currentNote),
 			Icon:         &Icon{Path: stringPtr("media/note.png")},
-			Variables:    variables,
 		}
+		item.setVars(variables)
 		item.setVar("note", input)
 		wf.addItem(item, true)
 	} else if currentNote != "" {
@@ -420,7 +422,7 @@ func (a *Airtable) editLink(input string) {
 
 	// Tags
 	currentTags := strings.Split(variables["tags"], ",")
-	if variables["tags"] == "__NONE__" {
+	if variables["tags"] == "__NONE__" || (variables["tags"] == "" && link.Tags == nil) {
 		currentTags = []string{}
 	} else if variables["tags"] == "" && link.Tags != nil {
 		currentTags = link.Tags
@@ -433,10 +435,10 @@ func (a *Airtable) editLink(input string) {
 		if match != "" {
 			// Create a new tag
 			item := Item{
-				Title:     "Create Tag: " + match,
-				Variables: variables,
-				Icon:      &Icon{Path: stringPtr("media/tag-new.png")},
+				Title: "Create Tag: " + match,
+				Icon:  &Icon{Path: stringPtr("media/tag-new.png")},
 			}
+			item.setVars(variables)
 			item.setVar("tags", strings.Join(append(currentTags, match), ","))
 			wf.addItem(item, true)
 		}
@@ -457,9 +459,9 @@ func (a *Airtable) editLink(input string) {
 				item := Item{
 					Title:        "Add Tag: " + tag,
 					AutoComplete: stringPtr("#" + tag),
-					Variables:    variables,
 					Icon:         &Icon{Path: stringPtr("media/tag.png")},
 				}
+				item.setVars(variables)
 				item.setVar("tags", strings.Join(append(currentTags, tag), ","))
 				wf.addItem(item, true)
 			}
@@ -489,8 +491,8 @@ func (a *Airtable) editLink(input string) {
 			Title:        "Edit Tags: " + newTagEdit,
 			Subtitle:     fmt.Sprintf("Current: %s", currentTagEdit),
 			AutoComplete: stringPtr(currentTagEdit),
-			Variables:    variables,
 		}
+		item.setVars(variables)
 		item.setVar("tags", strings.Join(tags, ","))
 		wf.addItem(item, true)
 
@@ -508,11 +510,11 @@ func (a *Airtable) editLink(input string) {
 			Valid:        boolPtr(false),
 		}
 		cmdMod := Mod{
-			Subtitle:  "Remove all tags",
-			Icon:      &Icon{Path: stringPtr("media/tag-delete.png")},
-			Valid:     boolPtr(true),
-			Variables: variables,
+			Subtitle: "Remove all tags",
+			Icon:     &Icon{Path: stringPtr("media/tag-delete.png")},
+			Valid:    boolPtr(true),
 		}
+		cmdMod.setVars(variables)
 		cmdMod.setVar("tags", "__NONE__")
 		item.Mods = &map[string]Mod{"cmd": cmdMod}
 		wf.addItem(item)
@@ -539,8 +541,8 @@ func (a *Airtable) editLink(input string) {
 						Title:        "Set Category: " + category,
 						AutoComplete: stringPtr("/" + category),
 						Icon:         &Icon{Path: stringPtr("media/category.png")},
-						Variables:    variables,
 					}
+					item.setVars(variables)
 					item.setVar("category", category)
 					wf.addItem(item, true)
 				}
@@ -556,11 +558,11 @@ func (a *Airtable) editLink(input string) {
 			Valid:        boolPtr(false),
 		}
 		cmdMod := Mod{
-			Subtitle:  "Remove category",
-			Icon:      &Icon{Path: stringPtr("media/category-delete.png")},
-			Valid:     boolPtr(true),
-			Variables: variables,
+			Subtitle: "Remove category",
+			Icon:     &Icon{Path: stringPtr("media/category-delete.png")},
+			Valid:    boolPtr(true),
 		}
+		cmdMod.setVars(variables)
 		cmdMod.setVar("category", "__NONE__")
 		item.Mods = &map[string]Mod{"cmd": cmdMod}
 		wf.addItem(item)
@@ -568,7 +570,7 @@ func (a *Airtable) editLink(input string) {
 
 	// Edit Lists
 	currentListIDs := strings.Split(variables["listIDs"], ",")
-	if variables["listIDs"] == "__NONE__" {
+	if variables["listIDs"] == "__NONE__" || (variables["listIDs"] == "" && link.ListIDs == nil) {
 		currentListIDs = []string{}
 	} else if variables["listIDs"] == "" && link.ListIDs != nil {
 		currentListIDs = link.ListIDs
@@ -595,10 +597,10 @@ func (a *Airtable) editLink(input string) {
 				}
 				if match == "" || strings.Contains(strings.ToLower(listName), match) {
 					item := Item{
-						Title:     "Add to List: " + listName,
-						Variables: variables,
-						Icon:      &Icon{Path: stringPtr("media/list.png")},
+						Title: "Add to List: " + listName,
+						Icon:  &Icon{Path: stringPtr("media/list.png")},
 					}
+					item.setVars(variables)
 					item.setVar("listIDs", strings.Join(append(currentListIDs, listID), ","))
 					wf.addItem(item, true)
 				}
@@ -616,10 +618,9 @@ func (a *Airtable) editLink(input string) {
 				Valid: boolPtr(false),
 			}
 			cmdMod := Mod{
-				Subtitle:  "Remove from list",
-				Icon:      &Icon{Path: stringPtr("media/list-delete.png")},
-				Valid:     boolPtr(true),
-				Variables: variables,
+				Subtitle: "Remove from list",
+				Icon:     &Icon{Path: stringPtr("media/list-delete.png")},
+				Valid:    boolPtr(true),
 			}
 			listIDs := []string{}
 			for _, id := range currentListIDs {
@@ -627,6 +628,7 @@ func (a *Airtable) editLink(input string) {
 					listIDs = append(listIDs, id)
 				}
 			}
+			cmdMod.setVars(variables)
 			cmdMod.setVar("listIDs", strings.Join(listIDs, ","))
 			item.Mods = &map[string]Mod{"cmd": cmdMod}
 			wf.addItem(item)
@@ -645,20 +647,20 @@ func (a *Airtable) editLink(input string) {
 			Valid: boolPtr(false),
 		}
 		cmdMod := Mod{
-			Subtitle:  "Mark as not done",
-			Icon:      &Icon{Path: stringPtr("media/unchecked.png")},
-			Valid:     boolPtr(true),
-			Variables: variables,
+			Subtitle: "Mark as not done",
+			Icon:     &Icon{Path: stringPtr("media/unchecked.png")},
+			Valid:    boolPtr(true),
 		}
+		cmdMod.setVars(variables)
 		cmdMod.setVar("done", "false")
 		item.Mods = &map[string]Mod{"cmd": cmdMod}
 		wf.addItem(item)
 	} else if input == ".d" {
 		item := Item{
-			Title:     "Mark as done",
-			Icon:      &Icon{Path: stringPtr("media/checked.png")},
-			Variables: variables,
+			Title: "Mark as done",
+			Icon:  &Icon{Path: stringPtr("media/checked.png")},
 		}
+		item.setVars(variables)
 		item.setVar("done", "true")
 		wf.addItem(item, true)
 	}

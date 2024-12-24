@@ -22,10 +22,17 @@ type Mod struct {
 func (m *Mod) setVar(name string, value string) {
 	if m.Variables == nil {
 		m.Variables = make(map[string]string)
-	} else {
-		m.Variables = copyMap(m.Variables)
 	}
 	m.Variables[name] = value
+}
+
+func (m *Mod) setVars(vars map[string]string) {
+	if m.Variables == nil {
+		m.Variables = make(map[string]string)
+	}
+	for k, v := range vars {
+		m.Variables[k] = v
+	}
 }
 
 type Item struct {
@@ -54,10 +61,17 @@ type Item struct {
 func (i *Item) setVar(name string, value string) {
 	if i.Variables == nil {
 		i.Variables = make(map[string]string)
-	} else {
-		i.Variables = copyMap(i.Variables)
 	}
 	i.Variables[name] = value
+}
+
+func (i *Item) setVars(vars map[string]string) {
+	if i.Variables == nil {
+		i.Variables = make(map[string]string)
+	}
+	for k, v := range vars {
+		i.Variables[k] = v
+	}
 }
 
 type Workflow struct {
@@ -95,10 +109,17 @@ func (w *Workflow) warnEmpty(s ...string) {
 func (w *Workflow) setVar(name string, value string) {
 	if w.Variables == nil {
 		w.Variables = make(map[string]string)
-	} else {
-		w.Variables = copyMap(w.Variables)
 	}
 	w.Variables[name] = value
+}
+
+func (w *Workflow) setVars(vars map[string]string) {
+	if w.Variables == nil {
+		w.Variables = make(map[string]string)
+	}
+	for k, v := range vars {
+		w.Variables[k] = v
+	}
 }
 
 func (w *Workflow) output() {

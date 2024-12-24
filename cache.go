@@ -130,7 +130,7 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 
 	selectQuery += `
 	GROUP BY Links.ID
-	ORDER BY Done DESC, Links.LastModified DESC;
+	ORDER BY Done, Links.LastModified DESC;
 	`
 
 	var rows *sql.Rows
@@ -159,13 +159,13 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tags.Valid {
+		if tags.Valid && tags.String != "" {
 			link.Tags = strings.Split(tags.String, ",")
 		}
-		if listIDs.Valid {
+		if listIDs.Valid && listIDs.String != "" {
 			link.ListIDs = strings.Split(listIDs.String, ",")
 		}
-		if listNames.Valid {
+		if listNames.Valid && listNames.String != "" {
 			link.ListNames = strings.Split(listNames.String, "\n")
 		}
 		links = append(links, link)
@@ -287,9 +287,6 @@ func (c *Cache) saveLists(lists []List) error {
 
 // Delete records from the database whose IDs are not in the list of IDs
 func (c *Cache) clearDeletedRecords(table string, ids []string) error {
-	if table != "Links" && table != "Lists" {
-		return fmt.Errorf("invalid table name: %s", table)
-	}
 	if len(ids) == 0 {
 		return nil
 	}

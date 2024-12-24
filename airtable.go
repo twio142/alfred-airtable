@@ -22,9 +22,9 @@ func (a *Airtable) fetchLinks() ([]Link, error) {
 	if err != nil {
 		return nil, err
 	}
-	links := []Link{}
-	for _, record := range records {
-		links = append(links, *record.toLink())
+	links := make([]Link, len(records))
+	for i, record := range records {
+		links[i] = *record.toLink()
 	}
 	return links, nil
 }
@@ -38,24 +38,24 @@ func (a *Airtable) fetchLists() ([]List, error) {
 	if err != nil {
 		return nil, err
 	}
-	lists := []List{}
-	for _, record := range records {
-		lists = append(lists, *record.toList())
+	lists := make([]List, len(records))
+	for i, record := range records {
+		lists[i] = *record.toList()
 	}
 	return lists, nil
 }
 
 func (a *Airtable) fetchAllIDs(table string) ([]string, error) {
-	IDs := []string{}
 	params := map[string]interface{}{
 		"fields": []string{"Name"},
 	}
 	records, err := a.fetchRecords(table, params)
 	if err != nil {
-		return IDs, err
+		return []string{}, err
 	}
-	for _, record := range records {
-		IDs = append(IDs, *record.ID)
+	IDs := make([]string, len(records))
+	for i, record := range records {
+		IDs[i] = *record.ID
 	}
 	return IDs, nil
 }

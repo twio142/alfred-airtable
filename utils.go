@@ -170,14 +170,6 @@ func (r *Record) toList() *List {
 	return &list
 }
 
-func copyMap(m map[string]string) map[string]string {
-	copy := make(map[string]string, len(m))
-	for k, v := range m {
-		copy[k] = v
-	}
-	return copy
-}
-
 func stringPtr(s string) *string {
 	return &s
 }

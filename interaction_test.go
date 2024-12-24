@@ -45,6 +45,7 @@ func TestEditLink(t *testing.T) {
 	if err != nil {
 		t.Errorf("init() error = %v", err)
 	}
+	os.Setenv("listIDs", "recnzJ8FfXPKbz6Pn")
 
 	airtable.editLink("[Test Title](https://example.com)")
 }
