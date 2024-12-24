@@ -511,7 +511,6 @@ func (a *Airtable) editLink(input string) {
 		}
 		cmdMod := Mod{
 			Subtitle: "Remove all tags",
-			Icon:     &Icon{Path: stringPtr("media/tag-delete.png")},
 			Valid:    boolPtr(true),
 		}
 		cmdMod.setVars(variables)
@@ -559,7 +558,6 @@ func (a *Airtable) editLink(input string) {
 		}
 		cmdMod := Mod{
 			Subtitle: "Remove category",
-			Icon:     &Icon{Path: stringPtr("media/category-delete.png")},
 			Valid:    boolPtr(true),
 		}
 		cmdMod.setVars(variables)
@@ -619,7 +617,6 @@ func (a *Airtable) editLink(input string) {
 			}
 			cmdMod := Mod{
 				Subtitle: "Remove from list",
-				Icon:     &Icon{Path: stringPtr("media/list-delete.png")},
 				Valid:    boolPtr(true),
 			}
 			listIDs := []string{}
