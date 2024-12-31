@@ -286,6 +286,7 @@ func (a *Airtable) editLink(input string) {
 			item.setVar("title", matches[2])
 			item.setVar("URL", matches[3])
 			item.setVar("exec", "save-link")
+			item.setVar("mode", "")
 			altMod := Mod{
 				Subtitle: "Edit record",
 				Icon:     &Icon{Path: stringPtr("media/edit.png")},
@@ -324,6 +325,7 @@ func (a *Airtable) editLink(input string) {
 		}
 		saveItem.setVars(variables)
 		saveItem.setVar("exec", "save-link")
+		saveItem.setVar("mode", "")
 		wf.addItem(saveItem)
 	}
 
@@ -446,7 +448,7 @@ func (a *Airtable) editLink(input string) {
 		// Add an existing tag
 		match = strings.ToLower(match)
 		tagsMap := make(map[string]bool)
-		if tags, _ := a.cache.getData("tags"); tags != nil {
+		if tags, _ := a.cache.getData("Tags"); tags != nil {
 			for _, tag := range strings.Split(*tags, ",") {
 				tagsMap[tag] = true
 			}
@@ -529,7 +531,7 @@ func (a *Airtable) editLink(input string) {
 	categoryRe := regexp.MustCompile(`^/(\w*)$`)
 	if matches := categoryRe.FindStringSubmatch(input); matches != nil {
 		match := strings.ToLower(matches[1])
-		if categories, _ := a.cache.getData("categories"); categories != nil {
+		if categories, _ := a.cache.getData("Categories"); categories != nil {
 			// Set a category
 			for _, category := range strings.Split(*categories, ",") {
 				if category == currentCategory {
@@ -696,7 +698,7 @@ func (a *Airtable) saveLink() error {
 	if os.Getenv("category") != "" {
 		if os.Getenv("category") == "__NONE__" {
 			link.Category = nil
-		} else if categories, _ := a.cache.getData("categories"); categories != nil {
+		} else if categories, _ := a.cache.getData("Categories"); categories != nil {
 			for _, category := range strings.Split(*categories, ",") {
 				if category == os.Getenv("category") {
 					link.Category = stringPtr(os.Getenv("category"))
