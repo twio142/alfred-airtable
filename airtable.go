@@ -42,6 +42,7 @@ func (a *Airtable) fetchLists() ([]List, error) {
 	for i, record := range records {
 		lists[i] = *record.toList()
 	}
+	logMessage("INFO", "Fetched %d lists", len(lists))
 	return lists, nil
 }
 
@@ -57,6 +58,7 @@ func (a *Airtable) fetchAllIDs(table string) ([]string, error) {
 	for i, record := range records {
 		IDs[i] = *record.ID
 	}
+	logMessage("INFO", "Fetched %d IDs in %s", len(IDs), table)
 	return IDs, nil
 }
 
@@ -226,6 +228,7 @@ func (a *Airtable) createLink(link *Link) error {
 	}
 	link.ID = records[0].ID
 	link.Created = records[0].CreatedTime
+	logMessage("INFO", "Created link %s", *link.Name)
 	return nil
 }
 
@@ -272,6 +275,7 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 	for i, linkRecord := range linkRecords {
 		list.LinkIDs[i] = *linkRecord.ID
 	}
+	logMessage("INFO", "Created list %s", *list.Name)
 	return nil
 }
 
@@ -286,6 +290,7 @@ func (a *Airtable) updateLink(link *Link) error {
 		return err
 	}
 	*link = *records[0].toLink()
+	logMessage("INFO", "Updated link %s", *link.Name)
 	return nil
 }
 
@@ -300,6 +305,7 @@ func (a *Airtable) updateList(list *List) error {
 		return err
 	}
 	*list = *records[0].toList()
+	logMessage("INFO", "Updated list %s", *list.Name)
 	return nil
 }
 
@@ -307,6 +313,7 @@ func (a *Airtable) deleteLink(link *Link) error {
 	if link == nil || link.ID == nil {
 		return fmt.Errorf("Link with an ID is required")
 	}
+	logMessage("INFO", "Deleting link %s", *link.ID)
 	return a.deleteRecords("Links", &[]*Record{{ID: link.ID}})
 }
 
@@ -331,6 +338,7 @@ func (a *Airtable) deleteList(list *List, deleteLinks bool) error {
 	if err != nil {
 		return err
 	}
+	logMessage("INFO", "Deleted list %s", *list.ID)
 	return nil
 }
 
@@ -366,6 +374,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 		outputFile = fmt.Sprintf("%s/%s_%d.md", lcDir, name, suffix)
 		suffix++
 	}
+	logMessage("INFO", "Saving list %s to %s", *list.Name, outputFile)
 	return &outputFile, os.WriteFile(outputFile, []byte(text), 0644)
 }
 

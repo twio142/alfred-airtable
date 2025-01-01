@@ -13,6 +13,7 @@ The workflow supports adding, editing, searching, and filtering records.
 
 - Testing in Alfred
     - Why does `fetchRecords` sometimes fail to paginate?
+    - [x] Log to debug
 - Rewrite the workflow in Go
     - [x] Authentication and OAuth flow (tested)
         1. Start the HTTP server in a goroutine: This server will handle the OAuth flow and listen for the callback from the OAuth provider.

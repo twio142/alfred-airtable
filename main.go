@@ -10,6 +10,10 @@ import (
 
 func syncInBackground(force ...bool) {
 	cmd := exec.Command(os.Args[0])
+	logFile := path.Join(os.Getenv("alfred_workflow_cache"), "airtable.log")
+	if f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		cmd.Stderr = f
+	}
 	if len(force) > 0 && force[0] {
 		cmd.Env = append(os.Environ(), "mode=force-sync")
 	} else {

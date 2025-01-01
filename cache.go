@@ -262,6 +262,7 @@ func (c *Cache) saveLinks(links []Link) error {
 			return err
 		}
 	}
+	logMessage("INFO", "Saved %d links", len(links))
 	return nil
 }
 
@@ -282,6 +283,7 @@ func (c *Cache) saveLists(lists []List) error {
 			return err
 		}
 	}
+	logMessage("INFO", "Saved %d lists", len(lists))
 	return nil
 }
 
@@ -331,8 +333,10 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	}
 	_, err = c.db.Exec(deleteQuery, args...)
 	if err != nil {
+		logMessage("ERROR", "Error deleting records from %s: %s", table, err)
 		return err
 	}
+	logMessage("INFO", "Deleting %d records from %s", len(idsToDelete), table)
 	return nil
 }
 
@@ -342,6 +346,7 @@ func (c *Cache) setData(key string, value string) error {
   `
 	_, err := c.db.Exec(insertQuery, key, value)
 	if err != nil {
+		logMessage("ERROR", "Error setting data for key %s: %s", key, err)
 		return err
 	}
 
@@ -355,6 +360,7 @@ func (c *Cache) getData(key string) (*string, error) {
 	var value string
 	err := c.db.QueryRow(selectQuery, key).Scan(&value)
 	if err != nil {
+		logMessage("ERROR", "Error getting data for key %s: %s", key, err)
 		return nil, err
 	}
 
@@ -369,7 +375,9 @@ func (c *Cache) clearCache() error {
   `
 	_, err := c.db.Exec(deleteQuery)
 	if err != nil {
+		logMessage("ERROR", "Error clearing cache: %s", err)
 		return err
 	}
+	logMessage("INFO", "Cleared cache")
 	return nil
 }

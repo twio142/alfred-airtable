@@ -12,11 +12,11 @@ import (
 // Interact with the Airtable API
 
 type Airtable struct {
-	baseURL      string
-	baseID       string
-	auth         *Auth
-	dbPath       string
-	cache        *Cache
+	baseURL string
+	baseID  string
+	auth    *Auth
+	dbPath  string
+	cache   *Cache
 }
 
 type Record struct {
@@ -69,6 +69,7 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		logMessage("ERROR", "Failed to fetch records: %s", resp.Status)
 		return nil, fmt.Errorf("failed to fetch records: %s", resp.Status)
 	}
 
@@ -81,9 +82,12 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 		params["offset"] = *response.Offset
 		if records, err := a.fetchRecords(tableName, params); err == nil {
 			response.Records = append(response.Records, records...)
+		} else {
+			logMessage("ERROR", "Failed to fetch additional records: %s", err)
 		}
 	}
 
+	logMessage("INFO", "Fetched %d records", len(response.Records))
 	return response.Records, nil
 }
 
@@ -149,6 +153,7 @@ func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 		}
 	}
 
+	logMessage("INFO", "Fetched %d tags and %d categories", len(tags), len(categories))
 	return &tags, &categories, nil
 }
 
@@ -190,6 +195,8 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 	for i, record := range response.Records {
 		(*records)[i] = &record
 	}
+
+	logMessage("INFO", "Created %d records", len(*records))
 	return nil
 }
 
@@ -237,6 +244,8 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 	for i, record := range response.Records {
 		(*records)[i] = &record
 	}
+
+	logMessage("INFO", "Updated %d records", len(*records))
 	return nil
 }
 
@@ -267,5 +276,6 @@ func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
 		return fmt.Errorf("failed to delete record: %s", resp.Status)
 	}
 
+	logMessage("INFO", "Deleted %d records", len(*records))
 	return nil
 }

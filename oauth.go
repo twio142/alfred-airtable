@@ -314,12 +314,14 @@ func (a *Airtable) getAuth() error {
 	auth.read(a.cache)
 	a.auth = &auth
 	if a.auth.Valid() {
+		logMessage("INFO", "Using cached auth")
 		return nil
 	} else if a.auth.refreshValid() {
 		server = o.startServer()
 		defer server.Shutdown(context.Background())
 
 		if err := exec.Command("curl", baseURL+"/refresh?refresh_token="+a.auth.RefreshToken).Start(); err != nil {
+			logMessage("ERROR", "Failed to refresh token: %v", err)
 			return err
 		}
 
@@ -328,6 +330,7 @@ func (a *Airtable) getAuth() error {
 		if newAuth.Token != nil && newAuth.AccessToken != "" {
 			a.auth = &newAuth
 			newAuth.write(a.cache)
+			logMessage("INFO", "Refreshed auth")
 			return nil
 		}
 	}
@@ -346,8 +349,10 @@ func (a *Airtable) getAuth() error {
 	a.auth = &newAuth
 
 	if newAuth.Token == nil || newAuth.AccessToken == "" {
+		logMessage("ERROR", "Failed to get auth")
 		return fmt.Errorf("failed to get auth")
 	}
 
+	logMessage("INFO", "Got auth")
 	return nil
 }

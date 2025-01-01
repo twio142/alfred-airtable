@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -32,6 +33,11 @@ func notify(subtitle string, m ...string) {
 		"-contentImage",
 		"media/airtable.png",
 	).Start()
+}
+
+func logMessage(level string, format string, a ...interface{}) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	fmt.Fprintf(os.Stderr, "%s [%s] %s\n", timestamp, level, fmt.Sprintf(format, a...))
 }
 
 var pinyinConverter = pinyin.NewArgs()
