@@ -68,7 +68,7 @@ func main() {
 		if err := airtable.saveLink(); err != nil {
 			notify(err.Error())
 		} else {
-			notify("Link saved!")
+			notify("Link saved!", os.Getenv("title"))
 			syncInBackground(true)
 		}
 	case "delete-link":
@@ -125,7 +125,7 @@ func main() {
 		if err := airtable.updateLink(link); err != nil {
 			notify(err.Error())
 		} else {
-			notify("List maked as done!")
+			notify("Link marked as done!")
 			syncInBackground(true)
 		}
 	case "list-to-lc":
