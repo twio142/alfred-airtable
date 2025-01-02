@@ -1,7 +1,5 @@
 # Alfred Airtable Workflow
 
-🚧 **Work in progress** 🚧
-
 An Alfred workflow for managing Airtable records, adapted to **my personal Airtable database for link collection**.
 
 The database consists of two tables: **Links** and **Lists**.
@@ -12,7 +10,7 @@ The workflow supports adding, editing, searching, and filtering records.
 ## To-Do
 
 - Testing in Alfred
-    - Why does `fetchRecords` sometimes fail to paginate?
+    - [x] Why does `fetchRecords` sometimes fail to paginate?
         - Concurrent API calls hit the rate limit
     - [x] Log to debug
     - [x] Implement rate limiting
