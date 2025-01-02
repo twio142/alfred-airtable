@@ -85,6 +85,12 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			_ = a.cache.setData("AccessToken", "")
+			_ = a.cache.setData("RefreshToken", "")
+			_ = a.getAuth()
+			return a.fetchRecords(tableName, params)
+		}
 		logMessage("ERROR", "Failed to fetch records: %s", resp.Status)
 		return nil, fmt.Errorf("failed to fetch records: %s", resp.Status)
 	}
