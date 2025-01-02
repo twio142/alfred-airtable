@@ -33,13 +33,12 @@ func TestAuth_isValid(t *testing.T) {
 		Token: &oauth2.Token{},
 	}
 	auth.read(airtable.cache)
-	airtable.auth = &auth
 
-	if !airtable.auth.Valid() {
+	if !auth.Valid() {
 		t.Errorf("Expected token to be valid")
 	}
 
-	airtable.auth.Expiry = time.Now().Add(-time.Hour)
+	auth.Expiry = time.Now().Add(-time.Hour)
 	if auth.Valid() {
 		t.Errorf("Expected token to be invalid")
 	}
