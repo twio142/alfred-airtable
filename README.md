@@ -1,11 +1,12 @@
 # Alfred Airtable Workflow
 
-An Alfred workflow for managing Airtable records, adapted to **my personal Airtable database for link collection**.
+An Alfred workflow for managing [Airtable](https://airtable.com/) records, adapted to **my personal Airtable database for link collection**.
 
-The database consists of two tables: **Links** and **Lists**.
-Where **Links** is the main table, and **Lists** is used to group links under specific topics.
+The database serves as a custom **bookmark manager / read-it-later app**.
+It consists of two tables: `Links` and `Lists`,
+where `Links` is the main table, and `Lists` is used to group links under specific topics.
 
-The workflow supports adding, editing, searching, and filtering records.
+The workflow supports adding, editing, searching, and filtering records interactively.
 
 ## To-Do
 
