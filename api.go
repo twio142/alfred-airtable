@@ -1,13 +1,25 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 )
+
+var (
+	rateLimiter = rate.NewLimiter(5, 1)
+	ctx         = context.Background()
+)
+
+func throttle() error {
+	return rateLimiter.Wait(ctx)
+}
 
 // Interact with the Airtable API
 
@@ -43,6 +55,10 @@ func (a *Airtable) init(skipAuth ...bool) error {
 }
 
 func (a *Airtable) fetchRecords(tableName string, params map[string]interface{}) ([]Record, error) {
+	if err := throttle(); err != nil {
+		return nil, err
+	}
+
 	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	searchParams := []string{}
 	for key, value := range params {
@@ -84,6 +100,7 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 			response.Records = append(response.Records, records...)
 		} else {
 			logMessage("ERROR", "Failed to fetch additional records: %s", err)
+			return nil, err
 		}
 	}
 
@@ -92,6 +109,10 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 }
 
 func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
+	if err := throttle(); err != nil {
+		return nil, nil, err
+	}
+
 	u := fmt.Sprintf("https://api.airtable.com/v0/meta/bases/%s/tables", a.baseID)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", u, nil)
@@ -158,6 +179,10 @@ func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 }
 
 func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
+	if err := throttle(); err != nil {
+		return err
+	}
+
 	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
 
@@ -201,6 +226,10 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 }
 
 func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
+	if err := throttle(); err != nil {
+		return err
+	}
+
 	for _, record := range *records {
 		if record == nil || record.ID == nil {
 			return fmt.Errorf("record with an ID is required for update")
@@ -250,6 +279,10 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 }
 
 func (a *Airtable) deleteRecords(tableName string, records *[]*Record) error {
+	if err := throttle(); err != nil {
+		return err
+	}
+
 	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	searchParams := []string{}
 	for _, record := range *records {

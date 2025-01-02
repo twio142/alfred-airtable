@@ -73,7 +73,7 @@ func main() {
 			notify(err.Error())
 		} else {
 			notify("Link saved!", os.Getenv("title"))
-			syncInBackground(true)
+			_ = airtable.syncData(true)
 		}
 	case "delete-link":
 		var link *Link
@@ -87,7 +87,7 @@ func main() {
 			notify(err.Error())
 		} else {
 			notify("Link deleted!")
-			syncInBackground(true)
+			_ = airtable.syncData(true)
 		}
 	case "delete-list":
 		var list *List
@@ -101,7 +101,7 @@ func main() {
 			notify(err.Error())
 		} else {
 			notify("List deleted!")
-			syncInBackground(true)
+			_ = airtable.syncData(true)
 		}
 	case "delete-list-links":
 		var list *List
@@ -115,7 +115,7 @@ func main() {
 			notify(err.Error())
 		} else {
 			notify("List deleted!")
-			syncInBackground(true)
+			_ = airtable.syncData(true)
 		}
 	case "complete-link":
 		var link *Link
@@ -130,7 +130,7 @@ func main() {
 			notify(err.Error())
 		} else {
 			notify("Link marked as done!")
-			syncInBackground(true)
+			_ = airtable.syncData(true)
 		}
 	case "list-to-lc":
 		var list *List

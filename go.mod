@@ -7,4 +7,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mozillazg/go-pinyin v0.20.0
 	golang.org/x/oauth2 v0.24.0
+	golang.org/x/time v0.8.0
 )
