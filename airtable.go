@@ -372,7 +372,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 		outputFile = fmt.Sprintf("%s/%s_%d.md", lcDir, name, suffix)
 		suffix++
 	}
-	logMessage("INFO", "Saving list %s to %s", *list.Name, outputFile)
+	logMessage("INFO", "Saving list %s to %s", name, outputFile)
 	return &outputFile, os.WriteFile(outputFile, []byte(text), 0644)
 }
 

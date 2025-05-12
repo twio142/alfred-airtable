@@ -162,6 +162,7 @@ func (l *List) format() Item {
 				Variables: map[string]string{
 					"exec":   "list-to-lc",
 					"listID": *l.ID,
+					"listName": *l.Name,
 				},
 			},
 			"ctrl": {
