@@ -123,13 +123,13 @@ func (l *Link) format() Item {
 
 func (l *List) format() Item {
 	subtitle := fmt.Sprintf("􀉣 %d/%d", *l.LinksDone, len(l.LinkIDs))
-	largetype := ""
+	largeParts := []string{}
 	if l.Note != nil {
 		subtitle = subtitle + "  ·  􀓕 " + *l.Note
-		largetype = *l.Note + "\n\n"
+		largeParts = append(largeParts, "􀓕 "+*l.Note, "")
 	}
 	for _, linkName := range l.LinkNames {
-		largetype = largetype + "- " + linkName + "\n"
+		largeParts = append(largeParts, "- "+linkName)
 	}
 	item := Item{
 		Title:    *l.Name,
@@ -140,7 +140,7 @@ func (l *List) format() Item {
 			LargeType *string `json:"largetype,omitempty"`
 		}{
 			Copy:      l.RecordURL,
-			LargeType: &largetype,
+			LargeType: stringPtr(strings.Join(largeParts, "\n")),
 		},
 		Icon: &Icon{Path: stringPtr("media/list.png")},
 		Variables: map[string]string{
