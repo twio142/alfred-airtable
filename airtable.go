@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -386,13 +385,12 @@ func (a *Airtable) linkCopierToList(file string) (*List, error) {
 	lines := strings.Split(string(text), "\n")
 	links := []Link{}
 	for _, line := range lines {
-		link := Link{}
-		re := regexp.MustCompile(`^- \[(.+)\]\((.+?)\)$`)
-		matches := re.FindStringSubmatch(line)
-		if len(matches) == 3 {
-			link.Name = &matches[1]
-			link.URL = &matches[2]
-			links = append(links, link)
+		title, url := parseMDLink(line)
+		if url != nil {
+			links = append(links, Link{
+				Name: title,
+				URL:  url,
+			})
 		}
 	}
 	list := List{Name: &name}
