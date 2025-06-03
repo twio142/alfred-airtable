@@ -194,6 +194,7 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 
 	data := map[string]interface{}{
 		"records": records,
+		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -247,6 +248,7 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 
 	data := map[string]interface{}{
 		"records": records,
+		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
