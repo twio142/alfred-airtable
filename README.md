@@ -11,6 +11,7 @@ The workflow supports adding, editing, searching, and filtering records interact
 ## To-Do
 
 - Testing in Alfred
+    - [x] Fix new record creation with new tags
     - [x] Why does `fetchRecords` sometimes fail to paginate?
         - Concurrent API calls hit the rate limit
     - [x] Log to debug

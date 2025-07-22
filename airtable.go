@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -88,7 +87,6 @@ func (a *Airtable) syncData(force ...bool) error {
 			default:
 			}
 			cancel()
-			return
 		}
 		select {
 		case linksChan <- links:
@@ -105,7 +103,6 @@ func (a *Airtable) syncData(force ...bool) error {
 			default:
 			}
 			cancel()
-			return
 		}
 		select {
 		case listsChan <- lists:
@@ -122,7 +119,6 @@ func (a *Airtable) syncData(force ...bool) error {
 			default:
 			}
 			cancel()
-			return
 		}
 		select {
 		case linkIDsChan <- linkIDs:
@@ -139,7 +135,6 @@ func (a *Airtable) syncData(force ...bool) error {
 			default:
 			}
 			cancel()
-			return
 		}
 		select {
 		case listIDsChan <- listIDs:
@@ -149,6 +144,8 @@ func (a *Airtable) syncData(force ...bool) error {
 
 	go func() {
 		defer wg.Done()
+		schema := []*string{nil, nil}
+
 		tags, categories, err := a.fetchSchema()
 		if err != nil {
 			select {
@@ -156,15 +153,15 @@ func (a *Airtable) syncData(force ...bool) error {
 			default:
 			}
 			cancel()
-			return
+		} else {
+			if tags != nil {
+				schema[0] = stringPtr(strings.Join(*tags, ","))
+			}
+			if categories != nil {
+				schema[1] = stringPtr(strings.Join(*categories, ","))
+			}
 		}
-		schema := []*string{nil, nil}
-		if tags != nil {
-			schema[0] = stringPtr(strings.Join(*tags, ","))
-		}
-		if categories != nil {
-			schema[1] = stringPtr(strings.Join(*categories, ","))
-		}
+
 		select {
 		case schemaChan <- schema:
 		case <-ctx.Done():
@@ -374,7 +371,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 		outputFile = fmt.Sprintf("%s/%s_%d.md", lcDir, name, suffix)
 		suffix++
 	}
-	logMessage("INFO", "Saving list %s to %s", *list.Name, outputFile)
+	logMessage("INFO", "Saving list %s to %s", name, outputFile)
 	return &outputFile, os.WriteFile(outputFile, []byte(text), 0644)
 }
 
@@ -388,13 +385,12 @@ func (a *Airtable) linkCopierToList(file string) (*List, error) {
 	lines := strings.Split(string(text), "\n")
 	links := []Link{}
 	for _, line := range lines {
-		link := Link{}
-		re := regexp.MustCompile(`^- \[(.+)\]\((.+?)\)$`)
-		matches := re.FindStringSubmatch(line)
-		if len(matches) == 3 {
-			link.Name = &matches[1]
-			link.URL = &matches[2]
-			links = append(links, link)
+		title, url := parseMDLink(line)
+		if url != nil {
+			links = append(links, Link{
+				Name: title,
+				URL:  url,
+			})
 		}
 	}
 	list := List{Name: &name}

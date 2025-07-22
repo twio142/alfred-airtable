@@ -85,6 +85,12 @@ func (a *Airtable) fetchRecords(tableName string, params map[string]interface{})
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			_ = a.cache.setData("AccessToken", "")
+			_ = a.cache.setData("RefreshToken", "")
+			_ = a.getAuth()
+			return a.fetchRecords(tableName, params)
+		}
 		logMessage("ERROR", "Failed to fetch records: %s", resp.Status)
 		return nil, fmt.Errorf("failed to fetch records: %s", resp.Status)
 	}
@@ -188,6 +194,7 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 
 	data := map[string]interface{}{
 		"records": records,
+		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -241,6 +248,7 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 
 	data := map[string]interface{}{
 		"records": records,
+		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
 	if err != nil {

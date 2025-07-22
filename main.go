@@ -136,6 +136,9 @@ func main() {
 		var list *List
 		if listID := os.Getenv("listID"); listID != "" {
 			list = &List{ID: &listID}
+			if listName := os.Getenv("listName"); listName != "" {
+				list.Name = &listName
+			}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: listID is required")
 			return
@@ -146,6 +149,19 @@ func main() {
 			return
 		}
 		_ = exec.Command("alfred", *file).Start()
+	case "lc-to-list":
+		if len(os.Args) < 2 {
+			fmt.Fprintln(os.Stderr, "Error: file path is required")
+			os.Exit(1)
+		}
+		list, err := airtable.linkCopierToList(os.Args[1])
+		if err != nil {
+			notify(err.Error())
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		} else {
+			notify("List created!", *list.Name)
+		}
 	}
 	airtable.cache.db.Close()
 }

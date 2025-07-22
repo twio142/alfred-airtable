@@ -123,13 +123,13 @@ func (l *Link) format() Item {
 
 func (l *List) format() Item {
 	subtitle := fmt.Sprintf("􀉣 %d/%d", *l.LinksDone, len(l.LinkIDs))
-	largetype := ""
+	largeParts := []string{}
 	if l.Note != nil {
 		subtitle = subtitle + "  ·  􀓕 " + *l.Note
-		largetype = *l.Note + "\n\n"
+		largeParts = append(largeParts, "􀓕 "+*l.Note, "")
 	}
 	for _, linkName := range l.LinkNames {
-		largetype = largetype + "- " + linkName + "\n"
+		largeParts = append(largeParts, "- "+linkName)
 	}
 	item := Item{
 		Title:    *l.Name,
@@ -140,7 +140,7 @@ func (l *List) format() Item {
 			LargeType *string `json:"largetype,omitempty"`
 		}{
 			Copy:      l.RecordURL,
-			LargeType: &largetype,
+			LargeType: stringPtr(strings.Join(largeParts, "\n")),
 		},
 		Icon: &Icon{Path: stringPtr("media/list.png")},
 		Variables: map[string]string{
@@ -162,6 +162,7 @@ func (l *List) format() Item {
 				Variables: map[string]string{
 					"exec":   "list-to-lc",
 					"listID": *l.ID,
+					"listName": *l.Name,
 				},
 			},
 			"ctrl": {
@@ -258,12 +259,10 @@ func (a *Airtable) editLink(input string) {
 		"done":     os.Getenv("done"),
 	}
 
-	mdLinkRe := regexp.MustCompile(`^(- )?\[(.+)\]\((.+?)\)$`)
-	inputMd := false
 	if variables["URL"] == "" {
-		if matches := mdLinkRe.FindStringSubmatch(os.Getenv("input")); matches != nil {
-			variables["title"] = matches[2]
-			variables["URL"] = matches[3]
+		if title, url := parseMDLink(os.Getenv("input")); url != nil {
+			variables["title"] = *title
+			variables["URL"] = *url
 		}
 	}
 
@@ -274,17 +273,18 @@ func (a *Airtable) editLink(input string) {
 		}
 	}
 
+	inputMd := false
 	if link.ID == nil && variables["URL"] == "" {
-		if matches := mdLinkRe.FindStringSubmatch(input); matches != nil && testURL(matches[3]) {
+		if title, url := parseMDLink(input); url != nil && testURL(*url) {
 			inputMd = true
 			item := Item{
 				Title:        "Save the Link to Airtable",
-				QuickLookURL: &matches[3],
+				QuickLookURL: url,
 				Icon:         &Icon{Path: stringPtr("media/save.png")},
 			}
 			item.setVars(variables)
-			item.setVar("title", matches[2])
-			item.setVar("URL", matches[3])
+			item.setVar("title", *title)
+			item.setVar("URL", *url)
 			item.setVar("exec", "save-link")
 			item.setVar("mode", "")
 			altMod := Mod{
@@ -292,18 +292,18 @@ func (a *Airtable) editLink(input string) {
 				Icon:     &Icon{Path: stringPtr("media/edit.png")},
 			}
 			altMod.setVars(variables)
-			altMod.setVar("title", matches[2])
-			altMod.setVar("URL", matches[3])
+			altMod.setVar("title", *title)
+			altMod.setVar("URL", *url)
 			altMod.setVar("mode", "edit-link")
 			item.Mods = &map[string]Mod{"alt": altMod}
 			wf.addItem(item)
 			wf.addItem(Item{
-				Title: matches[3],
+				Title: *url,
 				Icon:  &Icon{Path: stringPtr("media/link.png")},
 				Valid: boolPtr(false),
 			})
 			wf.addItem(Item{
-				Title: matches[2],
+				Title: *title,
 				Icon:  &Icon{Path: stringPtr("media/title.png")},
 				Valid: boolPtr(false),
 			})

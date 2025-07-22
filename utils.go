@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -239,4 +240,15 @@ func randomString(length int) (string, error) {
 func createCodeChallenge(codeVerifier string) string {
 	hash := sha256.Sum256([]byte(codeVerifier))
 	return base64.RawURLEncoding.EncodeToString(hash[:])
+}
+
+func parseMDLink(link string) (*string, *string) {
+	mdLinkRe := regexp.MustCompile(`^(?:- )?\[(.+)\]\((.+?)\)$`)
+	if mdLinkRe.MatchString(link) {
+		matches := mdLinkRe.FindStringSubmatch(link)
+		if len(matches) == 3 {
+			return &matches[1], &matches[2]
+		}
+	}
+	return nil, nil
 }

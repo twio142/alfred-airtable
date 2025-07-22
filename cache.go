@@ -166,7 +166,7 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 			link.ListIDs = strings.Split(listIDs.String, ",")
 		}
 		if listNames.Valid && listNames.String != "" {
-			link.ListNames = strings.Split(listNames.String, "\n")
+			link.ListNames = strings.Split(listNames.String, "\\n")
 		}
 		links = append(links, link)
 	}
@@ -221,7 +221,7 @@ func (c *Cache) getLists(list *List) ([]List, error) {
 			list.LinkIDs = strings.Split(linkIDs.String, ",")
 		}
 		if linkNames.Valid {
-			list.LinkNames = strings.Split(linkNames.String, "\n")
+			list.LinkNames = strings.Split(linkNames.String, "\\n")
 		}
 		status := "In progress"
 		switch *list.LinksDone {
