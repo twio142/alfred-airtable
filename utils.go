@@ -246,7 +246,7 @@ func parseMDLink(link string) (*string, *string) {
 	mdLinkRe := regexp.MustCompile(`^(?:- )?\[(.+)\]\((.+?)\)$`)
 	if mdLinkRe.MatchString(link) {
 		matches := mdLinkRe.FindStringSubmatch(link)
-		if len(matches) == 3 {
+		if len(matches) == 3 && testURL(matches[2]) {
 			return &matches[1], &matches[2]
 		}
 	}

@@ -257,6 +257,15 @@ func (a *Airtable) createList(list *List, links *[]Link) error {
 
 	linkRecords := make([]*Record, len(*links))
 	for i, link := range *links {
+		if link.Name == nil || *link.Name == "" {
+			return fmt.Errorf("link at index %d has empty name", i)
+		}
+		if link.URL == nil || *link.URL == "" {
+			return fmt.Errorf("link at index %d has empty URL", i)
+		}
+		if !testURL(*link.URL) {
+			return fmt.Errorf("link at index %d has invalid URL: %s", i, *link.URL)
+		}
 		if link.ListIDs == nil {
 			link.ListIDs = []string{*list.ID}
 		} else {
@@ -385,6 +394,10 @@ func (a *Airtable) linkCopierToList(file string) (*List, error) {
 	lines := strings.Split(string(text), "\n")
 	links := []Link{}
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		title, url := parseMDLink(line)
 		if url != nil {
 			links = append(links, Link{
@@ -392,6 +405,9 @@ func (a *Airtable) linkCopierToList(file string) (*List, error) {
 				URL:  url,
 			})
 		}
+	}
+	if len(links) == 0 {
+		return nil, fmt.Errorf("no valid links found in file %s", file)
 	}
 	list := List{Name: &name}
 	err = a.createList(&list, &links)

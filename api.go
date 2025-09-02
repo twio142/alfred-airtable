@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -185,6 +186,32 @@ func (a *Airtable) fetchSchema() (*[]string, *[]string, error) {
 }
 
 func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
+	if records == nil || len(*records) == 0 {
+		return nil
+	}
+
+	// Airtable API limit: maximum 10 records per request
+	const batchSize = 10
+	allRecords := *records
+	createdRecords := make([]*Record, 0, len(allRecords))
+
+	for i := 0; i < len(allRecords); i += batchSize {
+		end := min(i+batchSize, len(allRecords))
+
+		batch := allRecords[i:end]
+		err := a.createRecordsBatch(tableName, &batch)
+		if err != nil {
+			return err
+		}
+
+		createdRecords = append(createdRecords, batch...)
+	}
+
+	*records = createdRecords
+	return nil
+}
+
+func (a *Airtable) createRecordsBatch(tableName string, records *[]*Record) error {
 	if err := throttle(); err != nil {
 		return err
 	}
@@ -215,7 +242,12 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to create records: %s", resp.Status)
+		// Read the response body to get more detailed error information
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return fmt.Errorf("failed to create records: %s", resp.Status)
+		}
+		return fmt.Errorf("failed to create records: %s - %s", resp.Status, string(body))
 	}
 
 	var response Response
