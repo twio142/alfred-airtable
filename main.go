@@ -26,7 +26,7 @@ func main() {
 	cacheDir := os.Getenv("alfred_workflow_data")
 	if cacheDir == "" {
 		fmt.Fprintln(os.Stderr, "Error: alfred_workflow_data is not set")
-		return
+		os.Exit(1)
 	}
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
 		_ = os.Mkdir(cacheDir, 0755)
@@ -39,7 +39,7 @@ func main() {
 	}
 	if err := airtable.init(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
-		return
+		os.Exit(1)
 	}
 
 	mode := os.Getenv("mode")
@@ -81,7 +81,7 @@ func main() {
 			link = &Link{ID: &linkID}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: ID is required")
-			return
+			os.Exit(1)
 		}
 		if err := airtable.deleteLink(link); err != nil {
 			notify(err.Error())
@@ -95,7 +95,7 @@ func main() {
 			list = &List{ID: &listID}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: listID is required")
-			return
+			os.Exit(1)
 		}
 		if err := airtable.deleteList(list, false); err != nil {
 			notify(err.Error())
@@ -109,7 +109,7 @@ func main() {
 			list = &List{ID: &listID}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: listID is required")
-			return
+			os.Exit(1)
 		}
 		if err := airtable.deleteList(list, true); err != nil {
 			notify(err.Error())
@@ -123,7 +123,7 @@ func main() {
 			link = &Link{ID: &linkID}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: ID is required")
-			return
+			os.Exit(1)
 		}
 		link.Done = true
 		if err := airtable.updateLink(link); err != nil {
@@ -141,12 +141,12 @@ func main() {
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, "Error: listID is required")
-			return
+			os.Exit(1)
 		}
 		file, err := airtable.listToLinkCopier(list)
 		if err != nil {
 			notify(err.Error())
-			return
+			os.Exit(1)
 		}
 		_ = exec.Command("alfred", *file).Start()
 	case "lc-to-list":
