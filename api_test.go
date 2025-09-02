@@ -19,7 +19,7 @@ func TestFetchRecords(t *testing.T) {
 		t.Errorf("init() error = %v", err)
 	}
 
-	params := map[string]interface{}{
+	params := map[string]any{
 		"filterByFormula": "IS_AFTER(LAST_MODIFIED_TIME(),'2024-12-01T00:00:00Z')",
 		"fields":          []string{"Name", "Note", "URL", "Category", "Tags", "Last Modified", "Record URL", "Done", "Lists"},
 	}
@@ -68,7 +68,7 @@ func TestCreateRecords(t *testing.T) {
 	}
 
 	record := Record{
-		Fields: &map[string]interface{}{
+		Fields: &map[string]any{
 			"Name": "Test Link",
 			"Note": "Test Note",
 			"URL":  "http://example.com",

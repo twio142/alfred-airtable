@@ -13,7 +13,7 @@ import (
 // Interact with the Airtable database
 
 func (a *Airtable) fetchLinks() ([]Link, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.cache.lastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "URL", "Category", "Tags", "Last Modified", "Record URL", "Done", "Lists"},
 	}
@@ -29,7 +29,7 @@ func (a *Airtable) fetchLinks() ([]Link, error) {
 }
 
 func (a *Airtable) fetchLists() ([]List, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"filterByFormula": fmt.Sprintf("IS_AFTER(LAST_MODIFIED_TIME(),'%s')", a.cache.lastSyncedAt.Format(time.RFC3339)),
 		"fields":          []string{"Name", "Note", "Last Modified", "Record URL", "Links"},
 	}
@@ -46,7 +46,7 @@ func (a *Airtable) fetchLists() ([]List, error) {
 }
 
 func (a *Airtable) fetchAllIDs(table string) ([]string, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"fields": []string{"Name"},
 	}
 	records, err := a.fetchRecords(table, params)

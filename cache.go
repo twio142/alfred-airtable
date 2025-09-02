@@ -327,7 +327,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	placeholders := strings.Repeat("?,", len(idsToDelete))
 	placeholders = placeholders[:len(placeholders)-1]
 	deleteQuery := fmt.Sprintf(`DELETE FROM %s WHERE ID IN (%s)`, table, placeholders)
-	args := make([]interface{}, len(idsToDelete))
+	args := make([]any, len(idsToDelete))
 	for i, id := range idsToDelete {
 		args[i] = id
 	}

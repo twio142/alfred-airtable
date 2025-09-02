@@ -36,7 +36,7 @@ func notify(subtitle string, m ...string) {
 	).Start()
 }
 
-func logMessage(level string, format string, a ...interface{}) {
+func logMessage(level string, format string, a ...any) {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 	fmt.Fprintf(os.Stderr, "%s [%s] %s\n", timestamp, level, fmt.Sprintf(format, a...))
 }
@@ -99,7 +99,7 @@ func testURL(URL string) bool {
 // }
 
 func (l *Link) toRecord() Record {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"Done": l.Done,
 	}
 	if l.Name != nil {
@@ -128,7 +128,7 @@ func (l *Link) toRecord() Record {
 }
 
 func (l *List) toRecord() Record {
-	fields := map[string]interface{}{}
+	fields := map[string]any{}
 	if l.Name != nil {
 		fields["Name"] = *l.Name
 	}
@@ -185,7 +185,7 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-func getStringField(fields map[string]interface{}, key string) *string {
+func getStringField(fields map[string]any, key string) *string {
 	if value, ok := fields[key]; ok {
 		if str, ok := value.(string); ok {
 			return &str
@@ -194,9 +194,9 @@ func getStringField(fields map[string]interface{}, key string) *string {
 	return nil
 }
 
-func getStringSliceField(fields map[string]interface{}, key string) []string {
+func getStringSliceField(fields map[string]any, key string) []string {
 	if value, ok := fields[key]; ok {
-		if slice, ok := value.([]interface{}); ok && len(slice) > 0 {
+		if slice, ok := value.([]any); ok && len(slice) > 0 {
 			strSlice := make([]string, len(slice))
 			for i, v := range slice {
 				strSlice[i] = fmt.Sprintf("%v", v)
@@ -207,7 +207,7 @@ func getStringSliceField(fields map[string]interface{}, key string) []string {
 	return []string{}
 }
 
-func getTimeField(fields map[string]interface{}, key string) *time.Time {
+func getTimeField(fields map[string]any, key string) *time.Time {
 	if value, ok := fields[key]; ok {
 		if str, ok := value.(string); ok {
 			t, err := time.Parse(time.RFC3339, str)
@@ -219,7 +219,7 @@ func getTimeField(fields map[string]interface{}, key string) *time.Time {
 	return nil
 }
 
-func getBoolField(fields map[string]interface{}, key string) bool {
+func getBoolField(fields map[string]any, key string) bool {
 	if value, ok := fields[key]; ok {
 		if b, ok := value.(bool); ok {
 			return b

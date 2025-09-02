@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 )
 
@@ -30,9 +31,7 @@ func (m *Mod) setVars(vars map[string]string) {
 	if m.Variables == nil {
 		m.Variables = make(map[string]string)
 	}
-	for k, v := range vars {
-		m.Variables[k] = v
-	}
+	maps.Copy(m.Variables, vars)
 }
 
 type Item struct {
@@ -51,7 +50,7 @@ type Item struct {
 		Text *string `json:"text,omitempty"`
 		File *string `json:"file,omitempty"`
 		URL  *string `json:"url,omitempty"`
-	} `json:"action,omitempty"`
+	} `json:"action"`
 	QuickLookURL *string           `json:"quicklookurl,omitempty"`
 	Icon         *Icon             `json:"icon,omitempty"`
 	Variables    map[string]string `json:"variables,omitempty"`
@@ -69,9 +68,7 @@ func (i *Item) setVars(vars map[string]string) {
 	if i.Variables == nil {
 		i.Variables = make(map[string]string)
 	}
-	for k, v := range vars {
-		i.Variables[k] = v
-	}
+	maps.Copy(i.Variables, vars)
 }
 
 type Workflow struct {
@@ -117,9 +114,7 @@ func (w *Workflow) setVars(vars map[string]string) {
 	if w.Variables == nil {
 		w.Variables = make(map[string]string)
 	}
-	for k, v := range vars {
-		w.Variables[k] = v
-	}
+	maps.Copy(w.Variables, vars)
 }
 
 func (w *Workflow) output() {

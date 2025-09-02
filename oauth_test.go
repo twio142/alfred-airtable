@@ -21,7 +21,7 @@ import (
 
 func TestAuth_isValid(t *testing.T) {
 	airtable := &Airtable{
-		dbPath:  "airtable.db",
+		dbPath: "airtable.db",
 	}
 	airtable.cache = &Cache{file: airtable.dbPath}
 	err := airtable.cache.init()
@@ -46,7 +46,7 @@ func TestAuth_isValid(t *testing.T) {
 
 func TestAuth_isRefreshValid(t *testing.T) {
 	airtable := &Airtable{
-		dbPath:  "airtable.db",
+		dbPath: "airtable.db",
 	}
 	airtable.cache = &Cache{file: airtable.dbPath}
 	err := airtable.cache.init()

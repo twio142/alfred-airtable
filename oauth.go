@@ -168,7 +168,7 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintln(w, "Success! You can close this tab now.")
 
-	var responseData map[string]interface{}
+	var responseData map[string]any
 	if err = json.Unmarshal(body, &responseData); err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		o.authComplete <- Auth{}
@@ -192,75 +192,75 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *OAuth) handleRefresh(w http.ResponseWriter, r *http.Request) {
-    defer func() {
-        if r := recover(); r != nil {
-            log.Println("Recovered in handleRefresh:", r)
-            o.authComplete <- Auth{}
-        }
-    }()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in handleRefresh:", r)
+			o.authComplete <- Auth{}
+		}
+	}()
 
-    refreshToken := r.URL.Query().Get("refresh_token")
-    data := url.Values{}
-    data.Set("client_id", o.config.ClientID)
-    data.Set("refresh_token", refreshToken)
-    data.Set("scope", strings.Join(o.config.Scopes, " "))
-    data.Set("grant_type", "refresh_token")
+	refreshToken := r.URL.Query().Get("refresh_token")
+	data := url.Values{}
+	data.Set("client_id", o.config.ClientID)
+	data.Set("refresh_token", refreshToken)
+	data.Set("scope", strings.Join(o.config.Scopes, " "))
+	data.Set("grant_type", "refresh_token")
 
-    req, err := http.NewRequest("POST", o.config.Endpoint.TokenURL, bytes.NewBufferString(data.Encode()))
-    if err != nil {
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-        o.authComplete <- Auth{}
-        return
-    }
-    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-    if o.config.ClientSecret != "" {
-        req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
-    }
+	req, err := http.NewRequest("POST", o.config.Endpoint.TokenURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		o.authComplete <- Auth{}
+		return
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if o.config.ClientSecret != "" {
+		req.SetBasicAuth(o.config.ClientID, o.config.ClientSecret)
+	}
 
-    client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-        o.authComplete <- Auth{}
-        return
-    }
-    defer resp.Body.Close()
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		o.authComplete <- Auth{}
+		return
+	}
+	defer resp.Body.Close()
 
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-        o.authComplete <- Auth{}
-        return
-    }
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		o.authComplete <- Auth{}
+		return
+	}
 
-    var responseData map[string]interface{}
-    if err = json.Unmarshal(body, &responseData); err != nil {
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-        o.authComplete <- Auth{}
-        return
-    }
+	var responseData map[string]any
+	if err = json.Unmarshal(body, &responseData); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		o.authComplete <- Auth{}
+		return
+	}
 
-    if responseData["error"] != nil {
-        errorDescription := responseData["error_description"].(string)
-        fmt.Fprintf(w, "There was an error refreshing the token.\nError: \"%s\"\nError Description: \"%s\"", responseData["error"].(string), errorDescription)
-        o.authComplete <- Auth{}
-        return
-    }
+	if responseData["error"] != nil {
+		errorDescription := responseData["error_description"].(string)
+		fmt.Fprintf(w, "There was an error refreshing the token.\nError: \"%s\"\nError Description: \"%s\"", responseData["error"].(string), errorDescription)
+		o.authComplete <- Auth{}
+		return
+	}
 
-    expiry := time.Now().Add(time.Duration(responseData["expires_in"].(float64)) * time.Second)
-    refreshExpiry := time.Now().Add(time.Duration(responseData["refresh_expires_in"].(float64)) * time.Second)
+	expiry := time.Now().Add(time.Duration(responseData["expires_in"].(float64)) * time.Second)
+	refreshExpiry := time.Now().Add(time.Duration(responseData["refresh_expires_in"].(float64)) * time.Second)
 
-    newAuth := &Auth{
-        Token: &oauth2.Token{
-            AccessToken:  responseData["access_token"].(string),
-            TokenType:    responseData["token_type"].(string),
-            RefreshToken: responseData["refresh_token"].(string),
-            Expiry:       expiry,
-        },
-        RefreshExpiry: &refreshExpiry,
-    }
+	newAuth := &Auth{
+		Token: &oauth2.Token{
+			AccessToken:  responseData["access_token"].(string),
+			TokenType:    responseData["token_type"].(string),
+			RefreshToken: responseData["refresh_token"].(string),
+			Expiry:       expiry,
+		},
+		RefreshExpiry: &refreshExpiry,
+	}
 
-    o.authComplete <- *newAuth
+	o.authComplete <- *newAuth
 }
 
 func (o *OAuth) startServer() *http.Server {
@@ -337,7 +337,7 @@ func (a *Airtable) getAuth() error {
 
 	if server == nil {
 		server = o.startServer()
-    defer server.Shutdown(context.Background())
+		defer server.Shutdown(context.Background())
 	}
 
 	if err := exec.Command("open", baseURL).Start(); err != nil {

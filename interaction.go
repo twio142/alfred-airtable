@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -160,8 +161,8 @@ func (l *List) format() Item {
 				Subtitle: "Send to link copier",
 				Icon:     &Icon{Path: stringPtr("media/clip.png")},
 				Variables: map[string]string{
-					"exec":   "list-to-lc",
-					"listID": *l.ID,
+					"exec":     "list-to-lc",
+					"listID":   *l.ID,
 					"listName": *l.Name,
 				},
 			},
@@ -449,7 +450,7 @@ func (a *Airtable) editLink(input string) {
 		match = strings.ToLower(match)
 		tagsMap := make(map[string]bool)
 		if tags, _ := a.cache.getData("Tags"); tags != nil {
-			for _, tag := range strings.Split(*tags, ",") {
+			for tag := range strings.SplitSeq(*tags, ",") {
 				tagsMap[tag] = true
 			}
 			for _, tag := range currentTags {
@@ -472,7 +473,7 @@ func (a *Airtable) editLink(input string) {
 	} else if tagsRe.FindStringSubmatch(input) != nil {
 		// Edit all tags
 		tagsMap := map[string]bool{}
-		for _, part := range strings.Split(input, ",") {
+		for part := range strings.SplitSeq(input, ",") {
 			tag := strings.TrimSpace(part)
 			tag = strings.TrimPrefix(tag, "#")
 			tagsMap[tag] = true
@@ -533,7 +534,7 @@ func (a *Airtable) editLink(input string) {
 		match := strings.ToLower(matches[1])
 		if categories, _ := a.cache.getData("Categories"); categories != nil {
 			// Set a category
-			for _, category := range strings.Split(*categories, ",") {
+			for category := range strings.SplitSeq(*categories, ",") {
 				if category == currentCategory {
 					continue
 				}
@@ -587,8 +588,7 @@ func (a *Airtable) editLink(input string) {
 			}
 		}
 
-		if strings.HasPrefix(input, "@") {
-			match := strings.TrimPrefix(input, "@")
+		if match, ok := strings.CutPrefix(input, "@"); ok {
 			// Add to an existing list
 			match = strings.ToLower(match)
 			for listID, listName := range listNamesMap {
@@ -699,11 +699,8 @@ func (a *Airtable) saveLink() error {
 		if os.Getenv("category") == "__NONE__" {
 			link.Category = nil
 		} else if categories, _ := a.cache.getData("Categories"); categories != nil {
-			for _, category := range strings.Split(*categories, ",") {
-				if category == os.Getenv("category") {
-					link.Category = stringPtr(os.Getenv("category"))
-					break
-				}
+			if slices.Contains(strings.Split(*categories, ","), os.Getenv("category")) {
+				link.Category = stringPtr(os.Getenv("category"))
 			}
 		}
 	}

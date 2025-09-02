@@ -32,9 +32,9 @@ type Airtable struct {
 }
 
 type Record struct {
-	ID          *string                 `json:"id,omitempty"`
-	CreatedTime *time.Time              `json:"createdTime,omitempty"`
-	Fields      *map[string]interface{} `json:"fields,omitempty"`
+	ID          *string         `json:"id,omitempty"`
+	CreatedTime *time.Time      `json:"createdTime,omitempty"`
+	Fields      *map[string]any `json:"fields,omitempty"`
 }
 
 type Response struct {
@@ -54,7 +54,7 @@ func (a *Airtable) init(skipAuth ...bool) error {
 	return nil
 }
 
-func (a *Airtable) fetchRecords(tableName string, params map[string]interface{}) ([]Record, error) {
+func (a *Airtable) fetchRecords(tableName string, params map[string]any) ([]Record, error) {
 	if err := throttle(); err != nil {
 		return nil, err
 	}
@@ -192,8 +192,8 @@ func (a *Airtable) createRecords(tableName string, records *[]*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
 
-	data := map[string]interface{}{
-		"records": records,
+	data := map[string]any{
+		"records":  records,
 		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
@@ -246,8 +246,8 @@ func (a *Airtable) updateRecords(tableName string, records *[]*Record) error {
 	u := fmt.Sprintf("%s/%s/%s", a.baseURL, a.baseID, tableName)
 	client := &http.Client{}
 
-	data := map[string]interface{}{
-		"records": records,
+	data := map[string]any{
+		"records":  records,
 		"typecast": true,
 	}
 	jsonData, err := json.Marshal(data)
