@@ -11,7 +11,7 @@ import (
 func syncInBackground(force ...bool) {
 	cmd := exec.Command(os.Args[0])
 	logFile := path.Join(os.Getenv("alfred_workflow_cache"), "airtable.log")
-	if f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+	if f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 		cmd.Stderr = f
 	}
 	if len(force) > 0 && force[0] {
@@ -29,7 +29,7 @@ func main() {
 		os.Exit(1)
 	}
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-		_ = os.Mkdir(cacheDir, 0755)
+		_ = os.Mkdir(cacheDir, 0o755)
 	}
 
 	airtable := &Airtable{

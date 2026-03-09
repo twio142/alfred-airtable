@@ -369,7 +369,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 
 	lcDir := "link_copiers"
 	if _, err := os.Stat(lcDir); os.IsNotExist(err) {
-		_ = os.Mkdir(lcDir, 0755)
+		_ = os.Mkdir(lcDir, 0o755)
 	}
 	outputFile := fmt.Sprintf("%s/%s.md", lcDir, name)
 	suffix := 1
@@ -381,7 +381,7 @@ func (a *Airtable) listToLinkCopier(list *List) (*string, error) {
 		suffix++
 	}
 	logMessage("INFO", "Saving list %s to %s", name, outputFile)
-	return &outputFile, os.WriteFile(outputFile, []byte(text), 0644)
+	return &outputFile, os.WriteFile(outputFile, []byte(text), 0o644)
 }
 
 func (a *Airtable) linkCopierToList(file string) (*List, error) {

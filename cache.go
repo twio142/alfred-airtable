@@ -149,7 +149,7 @@ func (c *Cache) getLinks(list *List, linkID *string) ([]Link, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var links []Link
 	for rows.Next() {
@@ -206,7 +206,7 @@ func (c *Cache) getLists(list *List) ([]List, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var lists []List
 	for rows.Next() {
@@ -302,7 +302,7 @@ func (c *Cache) clearDeletedRecords(table string, ids []string) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var existingIDs []string
 	for rows.Next() {
 		var id string

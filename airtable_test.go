@@ -27,7 +27,7 @@ func TestFetchLinks(t *testing.T) {
 	}
 	_ = airtable.cache.saveLinks(links)
 	log.Println("cached", len(links), "links")
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestFetchLists(t *testing.T) {
@@ -47,7 +47,7 @@ func TestFetchLists(t *testing.T) {
 	}
 	_ = airtable.cache.saveLists(lists)
 	log.Println("cached", len(lists), "lists")
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestFetchAllIDs(t *testing.T) {
@@ -108,7 +108,7 @@ func TestCreateLink(t *testing.T) {
 		t.Errorf("createLink() error = %v", err)
 	}
 	log.Println("created link", link.ID)
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestCreateList(t *testing.T) {
@@ -141,7 +141,7 @@ func TestCreateList(t *testing.T) {
 	if len(list.LinkIDs) != 1 {
 		t.Errorf("createList() error = %v", "link not added")
 	}
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestUpdateLink(t *testing.T) {
@@ -176,7 +176,7 @@ func TestUpdateLink(t *testing.T) {
 	}
 
 	log.Println("updated link", link.ID, *link.Name)
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestDeleteLink(t *testing.T) {
@@ -215,7 +215,7 @@ func TestDeleteLink(t *testing.T) {
 
 	_, _ = airtable.fetchLinks()
 	_ = airtable.cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestDeleteList(t *testing.T) {
@@ -265,7 +265,7 @@ func TestDeleteList(t *testing.T) {
 
 	wg.Wait()
 	_ = airtable.cache.setData("LastSyncedAt", time.Now().Format(time.RFC3339))
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestSyncData(t *testing.T) {
@@ -288,7 +288,7 @@ func TestSyncData(t *testing.T) {
 	log.Println(airtable.cache.lastSyncedAt)
 	links, _ = airtable.cache.getLinks(nil, nil)
 	log.Println("got", len(links), "links")
-	airtable.cache.db.Close()
+	_ = airtable.cache.db.Close()
 }
 
 func TestListToLinkCopier(t *testing.T) {

@@ -71,11 +71,11 @@ func TestAuth_isRefreshValid(t *testing.T) {
 
 func TestAuth_read(t *testing.T) {
 	cache := &Cache{file: ":memory:"}
-	cache.init()
-	cache.setData("AccessToken", "test_token")
-	cache.setData("Expiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
-	cache.setData("RefreshToken", "test_refresh_token")
-	cache.setData("RefreshExpiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
+	_ = cache.init()
+	_ = cache.setData("AccessToken", "test_token")
+	_ = cache.setData("Expiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
+	_ = cache.setData("RefreshToken", "test_refresh_token")
+	_ = cache.setData("RefreshExpiry", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
 
 	auth := &Auth{
 		Token: &oauth2.Token{},
@@ -92,7 +92,7 @@ func TestAuth_read(t *testing.T) {
 
 func TestAuth_write(t *testing.T) {
 	cache := &Cache{file: ":memory:"}
-	cache.init()
+	_ = cache.init()
 
 	auth := &Auth{
 		Token: &oauth2.Token{
@@ -119,7 +119,7 @@ func TestAuth(t *testing.T) {
 		auth:  &Auth{},
 		cache: &Cache{file: ":memory:"},
 	}
-	a.cache.init()
+	_ = a.cache.init()
 
 	o := &OAuth{}
 	o.init()
@@ -137,7 +137,7 @@ func TestAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&auth); err != nil {
@@ -170,7 +170,7 @@ func TestRefresh(t *testing.T) {
 		auth:  &Auth{},
 		cache: &Cache{file: ":memory:"},
 	}
-	a.cache.init()
+	_ = a.cache.init()
 
 	o := &OAuth{}
 	o.init()
@@ -188,7 +188,7 @@ func TestRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&auth); err != nil {
@@ -198,7 +198,7 @@ func TestRefresh(t *testing.T) {
 
 	if auth.refreshValid() {
 		server := o.startServer()
-		defer server.Shutdown(context.Background())
+		defer func() { _ = server.Shutdown(context.Background()) }()
 
 		if err := exec.Command("curl", baseURL+"/refresh?refresh_token="+auth.Token.RefreshToken).Run(); err != nil {
 			t.Fatal(err)

@@ -44,22 +44,22 @@ func logMessage(level string, format string, a ...any) {
 var pinyinConverter = pinyin.NewArgs()
 
 func toPinyin(s *string) string {
-	out := ""
+	var out strings.Builder
 	for _, r := range *s {
 		if unicode.Is(unicode.Han, r) {
 			c := pinyin.Pinyin(string(r), pinyinConverter)
 			if len(c) > 0 && len(c[0]) > 0 {
 				for _, p := range c[0] {
-					out += p + " "
+					out.WriteString(p + " ")
 				}
 			}
 		} else if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			out += string(r)
+			out.WriteString(string(r))
 		} else {
-			out += " "
+			out.WriteString(" ")
 		}
 	}
-	return out
+	return out.String()
 }
 
 func (l *Link) match() *string {

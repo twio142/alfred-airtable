@@ -126,7 +126,7 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.URL.Query().Get("error"); err != "" {
 		errorDescription := r.URL.Query().Get("error_description")
-		fmt.Fprintf(w, "There was an error authorizing this request.\nError: \"%s\"\nError Description: \"%s\"", err, errorDescription)
+		_, _ = fmt.Fprintf(w, "There was an error authorizing this request.\nError: \"%s\"\nError Description: \"%s\"", err, errorDescription)
 		o.authComplete <- Auth{}
 		return
 	}
@@ -166,7 +166,7 @@ func (o *OAuth) handleAirtableOAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintln(w, "Success! You can close this tab now.")
+	_, _ = fmt.Fprintln(w, "Success! You can close this tab now.")
 
 	var responseData map[string]any
 	if err = json.Unmarshal(body, &responseData); err != nil {
@@ -242,7 +242,7 @@ func (o *OAuth) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	if responseData["error"] != nil {
 		errorDescription := responseData["error_description"].(string)
-		fmt.Fprintf(w, "There was an error refreshing the token.\nError: \"%s\"\nError Description: \"%s\"", responseData["error"].(string), errorDescription)
+		_, _ = fmt.Fprintf(w, "There was an error refreshing the token.\nError: \"%s\"\nError Description: \"%s\"", responseData["error"].(string), errorDescription)
 		o.authComplete <- Auth{}
 		return
 	}
@@ -318,7 +318,7 @@ func (a *Airtable) getAuth() error {
 		return nil
 	} else if a.auth.refreshValid() {
 		server = o.startServer()
-		defer server.Shutdown(context.Background())
+		defer func() { _ = server.Shutdown(context.Background()) }()
 
 		if err := exec.Command("curl", baseURL+"/refresh?refresh_token="+a.auth.RefreshToken).Start(); err != nil {
 			logMessage("ERROR", "Failed to refresh token: %v", err)
@@ -337,7 +337,7 @@ func (a *Airtable) getAuth() error {
 
 	if server == nil {
 		server = o.startServer()
-		defer server.Shutdown(context.Background())
+		defer func() { _ = server.Shutdown(context.Background()) }()
 	}
 
 	if err := exec.Command("open", baseURL).Start(); err != nil {
